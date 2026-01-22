@@ -2356,10 +2356,14 @@ async function requestReRating(groupName) {
             calculateFinalScores();
             
             // 保存数据到云端
-            await saveData();
+            const saveSuccess = await saveData();
             
             // 显示成功消息
-            showMessage('✅ ' + groupName + ' 评分提交成功！');
+            if (saveSuccess) {
+                showMessage('✅ ' + groupName + ' 评分提交成功！');
+            } else {
+                showMessage('⚠️ ' + groupName + ' 评分已保存到本地，但云端同步失败', 'warning');
+            }
             
             // 3秒后返回选择页面
             setTimeout(() => {
@@ -2879,51 +2883,84 @@ function getExportSummary() {
                 lastUpdate: new Date().getTime()
             };
             
-            try {
-                const response = await axios.put(JSONBIN_API_URL, dataToSave, {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Master-Key': JSONBIN_API_KEY
+            // 先保存到 localStorage 作为备份
+            localStorage.setItem('ratingSystemData', JSON.stringify(dataToSave));
+            
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (retryCount < maxRetries) {
+                try {
+                    const response = await axios.put(JSONBIN_API_URL, dataToSave, {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': JSONBIN_API_KEY
+                        },
+                        timeout: 10000 // 10秒超时
+                    });
+                    
+                    console.log('数据保存到 JSONBin.io 成功');
+                    return true;
+                } catch (e) {
+                    console.error('保存到 JSONBin.io 失败 (尝试 ' + (retryCount + 1) + '/' + maxRetries + '):', e);
+                    retryCount++;
+                    
+                    if (retryCount < maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // 等待2秒后重试
                     }
-                });
-                console.log('数据保存到 JSONBin.io 成功');
-                
-                // 同时保存到 localStorage 作为备份
-                localStorage.setItem('ratingSystemData', JSON.stringify(dataToSave));
-            } catch (e) {
-                console.error('保存到 JSONBin.io 失败:', e);
-                // 如果云端保存失败，保存到本地
-                localStorage.setItem('ratingSystemData', JSON.stringify(dataToSave));
-                showMessage('⚠️ 云端保存失败，已保存到本地', 'warning');
+                }
             }
+            
+            // 如果所有重试都失败，只使用本地存储
+            showMessage('⚠️ 云端保存失败，已保存到本地。数据可能不会同步到其他设备。', 'warning');
+            return false;
         }
         
         // 从 JSONBin.io 加载数据
         async function loadData() {
             let loadedData = null;
+            let cloudSuccess = false;
             
+            // 先尝试从本地加载
+            try {
+                const savedData = localStorage.getItem('ratingSystemData');
+                if (savedData) {
+                    loadedData = JSON.parse(savedData);
+                    console.log('从 localStorage 加载数据成功');
+                }
+            } catch (localError) {
+                console.error('从 localStorage 加载数据失败:', localError);
+            }
+            
+            // 再尝试从云端加载
             try {
                 const response = await axios.get(JSONBIN_API_URL, {
                     headers: {
                         'X-Master-Key': JSONBIN_API_KEY
-                    }
+                    },
+                    timeout: 10000 // 10秒超时
                 });
-                loadedData = response.data.record;
-                console.log('从 JSONBin.io 加载数据成功');
+                
+                const cloudData = response.data.record;
+                
+                // 比较云端和本地数据的时间戳，使用最新的
+                if (cloudData && cloudData.lastUpdate) {
+                    if (!loadedData || cloudData.lastUpdate > (loadedData.lastUpdate || 0)) {
+                        loadedData = cloudData;
+                        cloudSuccess = true;
+                        console.log('从 JSONBin.io 加载了更新的数据');
+                    } else {
+                        console.log('本地数据比云端新，使用本地数据');
+                    }
+                }
             } catch (e) {
                 console.error('从 JSONBin.io 加载数据失败:', e);
-                // 如果云端加载失败，尝试从本地加载
-                try {
-                    const savedData = localStorage.getItem('ratingSystemData');
-                    if (savedData) {
-                        loadedData = JSON.parse(savedData);
-                        console.log('从 localStorage 加载数据成功');
-                    }
-                } catch (localError) {
-                    console.error('从 localStorage 加载数据失败:', localError);
+                if (!loadedData) {
+                    showMessage('⚠️ 云端和本地都无法加载数据', 'warning');
                 }
             }
             
+            // 如果有加载的数据，应用它
             if (loadedData) {
                 groupsData = loadedData.groupsData || {};
                 ratingSchemes = loadedData.ratingSchemes || ratingSchemes;
@@ -2954,6 +2991,10 @@ function getExportSummary() {
                         ratingSchemes[schemeId].schemeLink = generateSchemeLink(schemeId);
                     }
                 });
+                
+                if (cloudSuccess) {
+                    console.log('✅ 数据同步成功');
+                }
             }
         }
 
@@ -3031,6 +3072,33 @@ window.addEventListener('DOMContentLoaded', init);
 window.addEventListener('hashchange', function() {
     detectVersion();
     checkHash();
+});
+
+// 页面可见性变化时保存数据
+document.addEventListener('visibilitychange', async function() {
+    if (document.visibilityState === 'hidden') {
+        // 页面即将隐藏时，确保数据已保存
+        console.log('页面即将隐藏，保存数据...');
+        await saveData();
+    } else if (document.visibilityState === 'visible') {
+        // 页面重新显示时，重新加载数据
+        console.log('页面重新显示，加载数据...');
+        await loadData();
+        updateAllResults();
+        updateGroupSelection();
+        if (currentVersion === 'admin') {
+            updateReRatingRequestsList();
+        } else {
+            updateMyReRatingRequests();
+        }
+    }
+});
+
+// 页面卸载前保存数据
+window.addEventListener('beforeunload', function() {
+    console.log('页面即将卸载，保存数据...');
+    // 同步保存数据
+    saveData();
 });
 
 console.log('评分系统代码加载完成');
