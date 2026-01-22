@@ -572,7 +572,11 @@
         function initializeGroupsData() {
             groupNames.forEach(groupName => {
                 if (!groupsData[groupName]) {
-                    groupsData[groupName] = { scores: [], finalScore: 0 };
+                    groupsData[groupName] = { 
+                        scores: [], 
+                        finalScore: 0,
+                        lastUpdate: 0
+                    };
                 }
             });
         }
@@ -636,11 +640,12 @@
                 await loadData();
                 
                 if (currentVersion === 'admin') {
+                    // 管理端：更新所有界面
                     updateReRatingRequestsList();
                     updateAllResults();
                     updateGroupSelection();
                 } else {
-                    // 评委端也自动同步，查看重评请求状态
+                    // 评委端：只更新重评请求和组选择状态，不覆盖本地数据
                     updateMyReRatingRequests();
                     updateGroupSelection();
                 }
@@ -2352,6 +2357,9 @@ async function requestReRating(groupName) {
             // 保存评分到云端
             groupsData[groupName].scores.push(rating);
             
+            // 更新该组的lastUpdate
+            groupsData[groupName].lastUpdate = new Date().getTime();
+            
             // 重新计算最终得分
             calculateFinalScores();
             
@@ -2366,10 +2374,22 @@ async function requestReRating(groupName) {
             }
             
             // 3秒后返回选择页面
-            setTimeout(() => {
+            setTimeout(async () => {
                 // 恢复提交按钮
                 submitBtn.disabled = false;
                 submitBtn.textContent = '📤 提交评分';
+                
+                // 立即保存到本地（防止刷新丢失）
+                localStorage.setItem('ratingSystemData', JSON.stringify({
+                    groupsData,
+                    ratingSchemes,
+                    currentSchemeId,
+                    currentScoringMethod,
+                    groupNames,
+                    reRatingRequests,
+                    ratingHistory,
+                    lastUpdate: new Date().getTime()
+                }));
                 
                 // 返回选择页面并更新状态
                 showMobilePage('group');
@@ -2946,7 +2966,39 @@ function getExportSummary() {
                 // 比较云端和本地数据的时间戳，使用最新的
                 if (cloudData && cloudData.lastUpdate) {
                     if (!loadedData || cloudData.lastUpdate > (loadedData.lastUpdate || 0)) {
-                        loadedData = cloudData;
+                        // 云端数据更新，合并数据而不是完全覆盖
+                        if (loadedData) {
+                            // 合并 groupsData，保留本地的新评分
+                            if (cloudData.groupsData) {
+                                Object.keys(cloudData.groupsData).forEach(groupName => {
+                                    if (!loadedData.groupsData[groupName]) {
+                                        loadedData.groupsData[groupName] = cloudData.groupsData[groupName];
+                                    } else {
+                                        // 保留本地数据，只更新云端更新的部分
+                                        const localGroup = loadedData.groupsData[groupName];
+                                        const cloudGroup = cloudData.groupsData[groupName];
+                                        
+                                        // 如果云端有更新，才更新
+                                        if (cloudGroup.lastUpdate > (localGroup.lastUpdate || 0)) {
+                                            loadedData.groupsData[groupName] = cloudGroup;
+                                        }
+                                    }
+                                });
+                            }
+                            
+                            // 更新其他字段
+                            if (cloudData.ratingSchemes) loadedData.ratingSchemes = cloudData.ratingSchemes;
+                            if (cloudData.currentSchemeId) loadedData.currentSchemeId = cloudData.currentSchemeId;
+                            if (cloudData.currentScoringMethod) loadedData.currentScoringMethod = cloudData.currentScoringMethod;
+                            if (cloudData.groupNames) loadedData.groupNames = cloudData.groupNames;
+                            if (cloudData.reRatingRequests) loadedData.reRatingRequests = cloudData.reRatingRequests;
+                            if (cloudData.ratingHistory) loadedData.ratingHistory = cloudData.ratingHistory;
+                            
+                            // 更新时间戳
+                            loadedData.lastUpdate = cloudData.lastUpdate;
+                        } else {
+                            loadedData = cloudData;
+                        }
                         cloudSuccess = true;
                         console.log('从 JSONBin.io 加载了更新的数据');
                     } else {
