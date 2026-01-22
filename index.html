@@ -556,6 +556,9 @@
                 <div class="mobile-content">
                     <h3 style="text-align: center;">🔄 我的重评请求</h3>
                     <div id="myReRatingRequests"></div>
+                    <button class="submit-btn" onclick="refreshMobileData()" style="background: #95a5a6; margin-top: 15px; font-size: 1rem; padding: 15px;">
+                        🔄 刷新数据
+                    </button>
                 </div>
             </div>
             
@@ -572,7 +575,11 @@
         function initializeGroupsData() {
             groupNames.forEach(groupName => {
                 if (!groupsData[groupName]) {
-                    groupsData[groupName] = { scores: [], finalScore: 0 };
+                    groupsData[groupName] = { 
+                        scores: [], 
+                        finalScore: 0,
+                        lastUpdate: 0
+                    };
                 }
             });
         }
@@ -636,11 +643,12 @@
                 await loadData();
                 
                 if (currentVersion === 'admin') {
+                    // 管理端：更新所有界面
                     updateReRatingRequestsList();
                     updateAllResults();
                     updateGroupSelection();
                 } else {
-                    // 评委端也自动同步，查看重评请求状态
+                    // 评委端：只更新重评请求和组选择状态，不覆盖本地数据
                     updateMyReRatingRequests();
                     updateGroupSelection();
                 }
@@ -2305,6 +2313,61 @@ async function requestReRating(groupName) {
             myReRatingRequestsDiv.innerHTML = html;
         }
         
+        // 评委端手动刷新数据
+        async function refreshMobileData() {
+            showMessage('📊 正在刷新数据...', 'info');
+            
+            // 强制从云端加载最新数据
+            try {
+                const response = await axios.get(JSONBIN_API_URL, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_API_KEY
+                    },
+                    timeout: 10000
+                });
+                
+                const cloudData = response.data.record;
+                
+                // 直接使用云端数据，清除本地缓存
+                localStorage.setItem('ratingSystemData', JSON.stringify(cloudData));
+                
+                // 应用云端数据
+                groupsData = cloudData.groupsData || {};
+                ratingSchemes = cloudData.ratingSchemes || ratingSchemes;
+                currentSchemeId = cloudData.currentSchemeId || currentSchemeId;
+                currentScoringMethod = cloudData.currentScoringMethod || currentScoringMethod;
+                
+                if (cloudData.groupNames && Array.isArray(cloudData.groupNames)) {
+                    groupNames = cloudData.groupNames;
+                }
+                
+                if (cloudData.reRatingRequests && Array.isArray(cloudData.reRatingRequests)) {
+                    reRatingRequests = cloudData.reRatingRequests;
+                }
+                
+                if (cloudData.ratingHistory && Array.isArray(cloudData.ratingHistory)) {
+                    ratingHistory = cloudData.ratingHistory;
+                }
+                
+                initializeGroupsData();
+                
+                Object.keys(ratingSchemes).forEach(schemeId => {
+                    if (!ratingSchemes[schemeId].schemeLink) {
+                        ratingSchemes[schemeId].schemeLink = generateSchemeLink(schemeId);
+                    }
+                });
+                
+                // 更新所有界面
+                updateGroupSelection();
+                updateMyReRatingRequests();
+                
+                showMessage('✅ 数据刷新成功！');
+            } catch (error) {
+                console.error('刷新数据失败:', error);
+                showMessage('⚠️ 数据刷新失败，请检查网络连接', 'warning');
+            }
+        }
+        
         // 提交评分
         async function submitRating() {
             if (isSubmitting) {
@@ -2352,6 +2415,9 @@ async function requestReRating(groupName) {
             // 保存评分到云端
             groupsData[groupName].scores.push(rating);
             
+            // 更新该组的lastUpdate
+            groupsData[groupName].lastUpdate = new Date().getTime();
+            
             // 重新计算最终得分
             calculateFinalScores();
             
@@ -2366,10 +2432,22 @@ async function requestReRating(groupName) {
             }
             
             // 3秒后返回选择页面
-            setTimeout(() => {
+            setTimeout(async () => {
                 // 恢复提交按钮
                 submitBtn.disabled = false;
                 submitBtn.textContent = '📤 提交评分';
+                
+                // 立即保存到本地（防止刷新丢失）
+                localStorage.setItem('ratingSystemData', JSON.stringify({
+                    groupsData,
+                    ratingSchemes,
+                    currentSchemeId,
+                    currentScoringMethod,
+                    groupNames,
+                    reRatingRequests,
+                    ratingHistory,
+                    lastUpdate: new Date().getTime()
+                }));
                 
                 // 返回选择页面并更新状态
                 showMobilePage('group');
@@ -2926,13 +3004,13 @@ function getExportSummary() {
                 const savedData = localStorage.getItem('ratingSystemData');
                 if (savedData) {
                     loadedData = JSON.parse(savedData);
-                    console.log('从 localStorage 加载数据成功');
+                    console.log('从 localStorage 加载数据成功，时间戳:', loadedData.lastUpdate);
                 }
             } catch (localError) {
                 console.error('从 localStorage 加载数据失败:', localError);
             }
             
-            // 再尝试从云端加载
+            // 强制从云端加载最新数据（微信端需要）
             try {
                 const response = await axios.get(JSONBIN_API_URL, {
                     headers: {
@@ -2943,14 +3021,21 @@ function getExportSummary() {
                 
                 const cloudData = response.data.record;
                 
-                // 比较云端和本地数据的时间戳，使用最新的
+                // 云端数据优先：如果云端有数据，直接使用云端数据
                 if (cloudData && cloudData.lastUpdate) {
-                    if (!loadedData || cloudData.lastUpdate > (loadedData.lastUpdate || 0)) {
+                    // 检查是否是微信端（通过URL参数判断）
+                    const isWeChat = navigator.userAgent.toLowerCase().includes('micromessenger');
+                    
+                    if (isWeChat || !loadedData || cloudData.lastUpdate > (loadedData.lastUpdate || 0)) {
+                        // 微信端或云端数据更新，直接使用云端数据
                         loadedData = cloudData;
                         cloudSuccess = true;
-                        console.log('从 JSONBin.io 加载了更新的数据');
+                        console.log('使用云端数据，时间戳:', cloudData.lastUpdate);
+                        
+                        // 清除本地缓存，强制使用云端数据
+                        localStorage.setItem('ratingSystemData', JSON.stringify(cloudData));
                     } else {
-                        console.log('本地数据比云端新，使用本地数据');
+                        console.log('本地数据比云端新，使用本地数据，时间戳:', loadedData.lastUpdate);
                     }
                 }
             } catch (e) {
@@ -3055,15 +3140,23 @@ function checkHash() {
 // 重置所有数据
 async function resetAllData() {
     if (confirm('⚠️ 确定要重置所有评分数据吗？此操作将清除所有评分记录！')) {
-        // 保留组名，只重置评分数据
+        // 清空所有组的评分数据，但保留组名
         groupNames.forEach(groupName => {
-            groupsData[groupName] = { scores: [], finalScore: 0 };
+            groupsData[groupName] = { 
+                scores: [], 
+                finalScore: 0,
+                lastUpdate: 0
+            };
         });
+        
+        // 清空重评请求
+        reRatingRequests = [];
         
         await saveData();
         updateAllResults();
         updateGroupSelection();
-        showMessage('✅ 所有数据已重置！');
+        updateReRatingRequestsList();
+        showMessage('✅ 所有评分数据已重置！');
     }
 }
 
