@@ -1085,15 +1085,22 @@
             if (group) {
                 group.scores = group.scores.filter(score => score.userId !== request.userId);
                 group.finalScore = 0;
+                group.lastUpdate = new Date().getTime();
             }
             
-            // 更新请求状态
-            request.status = 'approved';
-            request.approvedTime = new Date().getTime();
+            // 更新请求状态为已处理（不删除，下次不再显示）
+            request.status = 'processed';
+            request.processedTime = new Date().getTime();
             
             await saveData();
             updateReRatingRequestsList();
             updateAllResults();
+            
+            // 如果是评委端，也更新评委端的请求列表
+            if (currentVersion === 'mobile') {
+                updateMyReRatingRequests();
+            }
+            
             showMessage('✅ 已批准重评请求');
         }
         
@@ -1106,12 +1113,18 @@
                 return;
             }
             
-            // 更新请求状态
-            request.status = 'rejected';
-            request.rejectedTime = new Date().getTime();
+            // 更新请求状态为已处理（不删除，下次不再显示）
+            request.status = 'processed';
+            request.processedTime = new Date().getTime();
             
             await saveData();
             updateReRatingRequestsList();
+            
+            // 如果是评委端，也更新评委端的请求列表
+            if (currentVersion === 'mobile') {
+                updateMyReRatingRequests();
+            }
+            
             showMessage('✅ 已拒绝重评请求');
         }
         
@@ -2263,7 +2276,8 @@ async function requestReRating(groupName) {
             if (!myReRatingRequestsDiv) return;
             
             const userId = getCurrentUserId();
-            const myRequests = reRatingRequests.filter(req => req.userId === userId);
+            // 只显示待审批的请求，已完成的请求不显示
+            const myRequests = reRatingRequests.filter(req => req.userId === userId && req.status === 'pending');
             
             if (myRequests.length === 0) {
                 myReRatingRequestsDiv.innerHTML = '<p style="text-align: center; padding: 20px; color: #7f8c8d;">暂无重评请求</p>';
@@ -2272,24 +2286,6 @@ async function requestReRating(groupName) {
             
             let html = '';
             myRequests.forEach(request => {
-                let statusText = '';
-                let statusColor = '';
-                let actionText = '';
-                
-                if (request.status === 'pending') {
-                    statusText = '⏳ 待审批';
-                    statusColor = '#f39c12';
-                    actionText = '请等待管理员审批';
-                } else if (request.status === 'approved') {
-                    statusText = '✅ 已批准';
-                    statusColor = '#2ecc71';
-                    actionText = '现在可以重新评分了！';
-                } else if (request.status === 'rejected') {
-                    statusText = '❌ 已拒绝';
-                    statusColor = '#e74c3c';
-                    actionText = '重评申请被拒绝';
-                }
-                
                 html += `
                     <div style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -2299,12 +2295,12 @@ async function requestReRating(groupName) {
                                     ${new Date(request.requestTime).toLocaleString()}
                                 </div>
                             </div>
-                            <div style="font-weight: 600; color: ${statusColor}; font-size: 0.9rem;">
-                                ${statusText}
+                            <div style="font-weight: 600; color: #f39c12; font-size: 0.9rem;">
+                                ⏳ 待审批
                             </div>
                         </div>
                         <div style="color: #7f8c8d; font-size: 0.9rem; text-align: center;">
-                            ${actionText}
+                            请等待管理员审批
                         </div>
                     </div>
                 `;
