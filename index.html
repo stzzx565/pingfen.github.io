@@ -1,0 +1,3039 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雅丽洁研发中心评分系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .mobile-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .admin-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .panel-title {
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            color: #2c3e50;
+            text-align: center;
+            font-weight: 700;
+        }
+        
+        .share-link {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            margin: 20px 0;
+            border: 2px dashed #3498db;
+            font-size: 0.9rem;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 5px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+        
+        .navbar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            padding: 12px 25px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #3498db;
+            color: #3498db;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-btn.active {
+            background: #3498db;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        .mobile-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        
+        .page-header {
+            background: linear-gradient(135deg, #3498db 0%, #8e44ad 100%);
+            color: white;
+            padding: 30px 25px;
+            text-align: center;
+            border-radius: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .group-selection {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .group-btn {
+            background: white;
+            border: 3px solid #3498db;
+            border-radius: 15px;
+            padding: 25px 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            color: #3498db;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .group-btn.completed {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            border-color: #2ecc71;
+            color: white;
+        }
+        
+        .rating-item {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #3498db;
+        }
+        
+        .dimension-slider {
+            width: 100%;
+            height: 8px;
+            margin: 15px 0;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #e74c3c, #f39c12, #2ecc71);
+            border-radius: 10px;
+            outline: none;
+        }
+        
+        .submit-btn {
+            display: block;
+            width: 100%;
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+            border: none;
+            padding: 20px;
+            font-size: 1.3rem;
+            border-radius: 50px;
+            font-weight: 700;
+            margin-top: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #3498db;
+        }
+        
+        .message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.4s ease;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .scheme-list {
+            display: grid;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .scheme-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #3498db;
+        }
+        
+        .scheme-card.active {
+            border-left-color: #2ecc71;
+            background: #f8fff9;
+        }
+        
+        .scheme-editor {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+        
+        .export-options {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        @media (max-width: 768px) {
+            .container, .mobile-container {
+                padding: 15px;
+            }
+            
+            .navbar {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .nav-btn, .group-selection {
+                width: 100%;
+            }
+            
+            .group-selection {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .export-options {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="message success" id="successMessage">✅ 操作成功！</div>
+    <div class="message info" id="infoMessage">📊 处理中...</div>
+    <div class="message warning" id="warningMessage">⚠️ 操作提示</div>
+    
+    <!-- 管理端页面 -->
+    <div id="adminPage" class="page active">
+        <div class="container">
+            <div class="navbar">
+                <button class="nav-btn active" onclick="showAdminPage('home')">🏠 系统首页</button>
+                <button class="nav-btn" onclick="showAdminPage('scheme')">📋 评分方案</button>
+                <button class="nav-btn" onclick="showAdminPage('results')">📊 查看结果</button>
+                <button class="nav-btn" onclick="showAdminPage('history')">📜 评分历史</button>
+            </div>
+            
+            <div id="adminHomePage" class="admin-content active">
+                <h2 class="panel-title">🎯 雅丽洁研发中心评分系统管理后台</h2>
+                
+                <div class="admin-content">
+                    <h3>� 分数统计方案</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                        <div style="padding: 20px; border: 2px solid #e9ecef; border-radius: 10px; cursor: pointer; transition: all 0.3s;" 
+                             id="method1Card" onclick="selectScoringMethod('method1')">
+                            <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 10px;">方案1 - 去极值平均法</div>
+                            <div style="color: #7f8c8d; font-size: 0.9rem;">去掉最高分和最低分后取平均分</div>
+                            <div style="margin-top: 10px; font-size: 0.85rem; color: #3498db;">当前使用中</div>
+                        </div>
+                        
+                        <div style="padding: 20px; border: 2px solid #e9ecef; border-radius: 10px; cursor: pointer; transition: all 0.3s;" 
+                             id="method2Card" onclick="selectScoringMethod('method2')">
+                            <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 10px;">方案2 - 简单平均法</div>
+                            <div style="color: #7f8c8d; font-size: 0.9rem;">所有评委评分直接取平均分</div>
+                            <div style="margin-top: 10px; font-size: 0.85rem; color: #7f8c8d;">点击选择</div>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 15px;">
+                        <button class="btn" onclick="applyScoringMethod()">✅ 应用统计方案</button>
+                    </div>
+                </div>
+                
+                <div class="admin-content">
+                    <h3>� 链接管理</h3>
+                    
+                    <div style="margin-bottom: 25px;">
+                        <h4>📱 评分版链接（评委专用）</h4>
+                        <div class="share-link" id="ratingLink">加载中...</div>
+                        <button class="btn" onclick="copyRatingLink()">📋 复制评分链接</button>
+                    </div>
+                    
+                    <div>
+                        <h4>💻 管理版链接（管理员专用）</h4>
+                        <div class="share-link" id="adminLink">加载中...</div>
+                        <button class="btn btn-secondary" onclick="copyAdminLink()">📋 复制管理链接</button>
+                    </div>
+                </div>
+                
+                <div class="admin-content">
+                    <h3>📈 实时统计</h3>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="adminTotalRatings">0</div>
+                            <div class="stat-label">总评分次数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="adminAvgScore">0.0</div>
+                            <div class="stat-label">平均总分</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="adminCompleted">0/4</div>
+                            <div class="stat-label">已评分组数</div>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 25px;">
+                        <button class="btn" onclick="syncData()">🔄 同步数据</button>
+                        <button class="btn btn-secondary" onclick="showAdminPage('results')">📊 查看详情</button>
+                        <button class="btn btn-warning" onclick="resetAllData()">🔄 重置数据</button>
+                    </div>
+                </div>
+                
+                <div class="admin-content">
+                    <h3>🔄 重评请求管理</h3>
+                    <div id="reRatingRequestsList"></div>
+                </div>
+            </div>
+            
+            <div id="adminSchemePage" class="admin-content">
+                <h2 class="panel-title">⚙️ 评分方案管理</h2>
+                
+                <div class="admin-content">
+                    <h3>📋 评分组名管理</h3>
+                    
+                    <div id="groupNamesList" style="display: grid; gap: 15px; margin: 20px 0;"></div>
+                    
+                    <div style="text-align: center; margin: 25px 0;">
+                        <button class="btn" onclick="showAddGroupName()">➕ 添加组名</button>
+                    </div>
+                </div>
+                
+                <div class="admin-content">
+                    <h3>📋 评分方案列表</h3>
+                    
+                    <div class="scheme-list" id="schemeList"></div>
+                    
+                    <div style="text-align: center; margin: 25px 0;">
+                        <button class="btn" onclick="showSchemeEditorNew()">➕ 新建方案</button>
+                        <button class="btn btn-secondary" onclick="exportSchemes()">📥 导出方案</button>
+                        <button class="btn btn-warning" onclick="importSchemes()">📤 导入方案</button>
+                        <button class="btn" onclick="exportSchemesToCloud()">☁️ 导出方案到云端</button>
+                        <button class="btn" onclick="importSchemesFromCloud()">☁️ 从云端导入</button>
+                    </div>
+                </div>
+                
+                <div class="scheme-editor" id="schemeEditor" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 id="editorTitle">新建评分方案</h3>
+                        <div>
+                            <button class="btn" onclick="saveScheme()">💾 保存方案</button>
+                            <button class="btn btn-secondary" onclick="cancelEdit()">❌ 取消</button>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label>方案名称</label>
+                        <input type="text" class="form-input" id="schemeName" placeholder="请输入方案名称">
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label>方案描述</label>
+                        <textarea class="form-input" id="schemeDescription" placeholder="请输入方案描述" rows="3"></textarea>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label>评分维度</label>
+                        <div id="dimensionEditor"></div>
+                        <button class="btn" onclick="addDimension()" style="margin-top: 10px;">➕ 添加维度</button>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label>总分设置</label>
+                        <input type="number" class="form-input" id="totalScore" placeholder="总分" value="100" min="1">
+                    </div>
+                </div>
+                
+                <div class="admin-content" id="currentSchemeInfo">
+                    <h3>📊 当前使用方案</h3>
+                    <div id="activeSchemeDisplay"></div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                        <h4>🔗 方案链接</h4>
+                        <div class="share-link" id="schemeLink1">加载中...</div>
+                        <button class="btn" onclick="copySchemeLink('scheme1')" style="margin-bottom: 15px;">📋 复制方案1链接</button>
+                        
+                        <div class="share-link" id="schemeLink2">加载中...</div>
+                        <button class="btn btn-secondary" onclick="copySchemeLink('scheme2')">📋 复制方案2链接</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="adminResultsPage" class="admin-content">
+                <h2 class="panel-title">🏆 评分结果</h2>
+                
+                <div style="text-align: center; margin-bottom: 20px; padding: 15px; background: #e8f4fd; border-radius: 10px;">
+                    <strong>当前统计方案：</strong>
+                    <span id="currentScoringMethodDisplay" style="color: #3498db; font-weight: 700;">方案1 - 去极值平均法</span>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="resultsTotalRatings">0</div>
+                        <div class="stat-label">总评分次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="resultsAvgScore">0.0</div>
+                        <div class="stat-label">平均总分</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="resultsCompleted">0/4</div>
+                        <div class="stat-label">已评分组数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="resultsHighest">0.0</div>
+                        <div class="stat-label">最高得分</div>
+                    </div>
+                </div>
+                
+                <div class="admin-content">
+                    <h3>📈 排名情况</h3>
+                    <div id="rankingResults">
+                        <p style="text-align: center; padding: 40px; color: #7f8c8d;">暂无评分数据</p>
+                    </div>
+                </div>
+                
+                <div class="admin-content">
+                    <h3>📥 导出数据</h3>
+                    <div class="export-options">
+                        <button class="btn" onclick="exportToExcel()">📊 导出Excel</button>
+                        <button class="btn btn-secondary" onclick="exportToWord()">📄 导出Word</button>
+                        <button class="btn btn-warning" onclick="exportToJSON()">📋 导出JSON</button>
+                    </div>
+                </div>
+                
+                <div class="admin-content">
+                    <h3>💾 保存当前评分</h3>
+                    <p style="color: #7f8c8d; margin-bottom: 15px;">将当前评分方案和评分结果保存到历史记录中，方便后续查看</p>
+                    <button class="btn" onclick="saveCurrentRatingToHistory()" style="width: 100%;">💾 保存到历史记录</button>
+                </div>
+            </div>
+            
+            <div id="adminHistoryPage" class="admin-content">
+                <h2 class="panel-title">📜 评分历史</h2>
+                
+                <div id="ratingHistoryList"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 手机端页面 -->
+    <div id="mobilePage" class="page">
+        <div class="mobile-container">
+            <div id="mobileGroupPage" class="page active">
+                <div class="page-header">
+                    <h1>尊重：担当：创新：简单：共赢</h1>
+                    <p>请选择要评分的组别</p>
+                </div>
+                
+                <div class="mobile-content">
+                    <div style="text-align: center; padding: 20px;">
+                        <div class="stat-value" id="completedCount">0/0</div>
+                        <div class="stat-label">已评分进度</div>
+                    </div>
+                </div>
+                
+                <div class="mobile-content">
+                    <h3 style="text-align: center;">📝 选择评分组</h3>
+                    <div class="group-selection" id="groupSelectionContainer"></div>
+                </div>
+                
+                <div class="mobile-content">
+                    <h3 style="text-align: center;">🔄 我的重评请求</h3>
+                    <div id="myReRatingRequests"></div>
+                </div>
+            </div>
+            
+            <div id="mobileRatingPage" class="page"></div>
+            <div id="mobileReviewPage" class="page"></div>
+        </div>
+    </div>
+
+    <script>
+        // 数据存储
+        let groupsData = {};
+        
+        // 初始化组数据
+        function initializeGroupsData() {
+            groupNames.forEach(groupName => {
+                if (!groupsData[groupName]) {
+                    groupsData[groupName] = { scores: [], finalScore: 0 };
+                }
+            });
+        }
+        
+        let ratingSchemes = {};
+        let currentSchemeId = "scheme1";
+        let currentRatingGroup = '';
+        let currentVersion = 'admin';
+        let isSubmitting = false;
+        let currentEditingScheme = null;
+        let currentScoringMethod = "method1";
+        let groupNames = ["洗护组", "护肤1组", "护肤2组", "护肤3组"];
+        let reRatingRequests = [];
+        let ratingHistory = [];
+        let autoSyncInterval = null;
+        
+        // JSONBin.io 配置
+        const JSONBIN_API_KEY = '$2a$10$c2NEBUyWOI3Yqv3mlGn8zeY7ysKbSPQdFv9Oyli9LN5J8LN1wkvSK'; // 请替换为你的 API Key
+        const JSONBIN_BIN_ID = '696ee7fe43b1c97be93bf06b'; // 请替换为你的 Bin ID
+        const JSONBIN_API_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+
+        // 初始化
+        async function init() {
+            console.log('系统初始化...');
+            initializeGroupsData();
+            initializeDefaultScheme();
+            detectVersion();
+            await loadData();
+            updateShareLinks();
+            updateSchemeLinks();
+            checkHash();
+            updateAllResults();
+            updateSchemeList();
+            updateCurrentSchemeInfo();
+            updateScoringMethodUI();
+            updateGroupNamesList();
+            updateReRatingRequestsList();
+            updateRatingHistoryList();
+            
+            // 如果是评委端，更新我的重评请求列表
+            if (currentVersion === 'mobile') {
+                updateMyReRatingRequests();
+            }
+            
+            // 启动自动同步（每30秒同步一次）
+            startAutoSync();
+            
+            console.log('系统初始化完成');
+        }
+        
+        // 启动自动同步
+        function startAutoSync() {
+            // 清除已有的定时器
+            if (autoSyncInterval) {
+                clearInterval(autoSyncInterval);
+            }
+            
+            // 每30秒自动同步一次数据
+            autoSyncInterval = setInterval(async () => {
+                console.log('自动同步数据...');
+                await loadData();
+                
+                if (currentVersion === 'admin') {
+                    updateReRatingRequestsList();
+                    updateAllResults();
+                    updateGroupSelection();
+                } else {
+                    // 评委端也自动同步，查看重评请求状态
+                    updateMyReRatingRequests();
+                    updateGroupSelection();
+                }
+            }, 30000); // 30秒
+        }
+        
+        // 停止自动同步
+        function stopAutoSync() {
+            if (autoSyncInterval) {
+                clearInterval(autoSyncInterval);
+                autoSyncInterval = null;
+            }
+        }
+        
+        // 初始化默认方案
+        function initializeDefaultScheme() {
+            // 方案1 - 洗护组专用
+            ratingSchemes['scheme1'] = {
+                id: "scheme1",
+                name: "方案1 - 洗护组专用",
+                description: "针对洗护组优化的评分方案，侧重产品实用性",
+                dimensions: [
+                    { 
+                        name: "表达能力", 
+                        weight: 15,
+                        minScore: 1,
+                        maxScore: 10,
+                        scoreLevels: [
+                            { score: 1, description: "表达不清" },
+                            { score: 4, description: "基本清晰" },
+                            { score: 7, description: "表达流畅" },
+                            { score: 10, description: "表达出色" }
+                        ]
+                    },
+                    { 
+                        name: "产品体验感", 
+                        weight: 20,
+                        minScore: 1,
+                        maxScore: 10,
+                        scoreLevels: [
+                            { score: 1, description: "体验差" },
+                            { score: 4, description: "体验一般" },
+                            { score: 7, description: "体验良好" },
+                            { score: 10, description: "体验优秀" }
+                        ]
+                    },
+                    { 
+                        name: "产品实用性", 
+                        weight: 25,
+                        minScore: 1,
+                        maxScore: 10,
+                        scoreLevels: [
+                            { score: 1, description: "不实用" },
+                            { score: 4, description: "基本实用" },
+                            { score: 7, description: "比较实用" },
+                            { score: 10, description: "非常实用" }
+                        ]
+                    },
+                    { 
+                        name: "技术创新性", 
+                        weight: 15,
+                        minScore: 1,
+                        maxScore: 10,
+                        scoreLevels: [
+                            { score: 1, description: "无创新" },
+                            { score: 4, description: "略有创新" },
+                            { score: 7, description: "创新明显" },
+                            { score: 10, description: "创新突出" }
+                        ]
+                    },
+                    { 
+                        name: "产品阐述完整度", 
+                        weight: 15,
+                        minScore: 1,
+                        maxScore: 10,
+                        scoreLevels: [
+                            { score: 1, description: "不完整" },
+                            { score: 4, description: "基本完整" },
+                            { score: 7, description: "比较完整" },
+                            { score: 10, description: "非常完整" }
+                        ]
+                    },
+                    { 
+                        name: "问答满意度", 
+                        weight: 10,
+                        minScore: 1,
+                        maxScore: 10,
+                        scoreLevels: [
+                            { score: 1, description: "不满意" },
+                            { score: 4, description: "基本满意" },
+                            { score: 7, description: "比较满意" },
+                            { score: 10, description: "非常满意" }
+                        ]
+                    }
+                ],
+                totalScore: 100,
+                isActive: true,
+                createdAt: new Date().getTime(),
+                schemeLink: generateSchemeLink('scheme1')
+            };
+            
+            // 方案2 - 护肤组专用
+            ratingSchemes['scheme2'] = {
+                id: "scheme2",
+                name: "方案2 - 护肤组专用",
+                description: "针对护肤组优化的评分方案，侧重技术创新和效果",
+                dimensions: [
+                    { 
+                        name: "技术含量", 
+                        weight: 25,
+                        minScore: 1,
+                        maxScore: 15,
+                        scoreLevels: [
+                            { score: 1, description: "技术含量低" },
+                            { score: 5, description: "技术一般" },
+                            { score: 10, description: "技术较高" },
+                            { score: 15, description: "技术很高" }
+                        ]
+                    },
+                    { 
+                        name: "使用效果", 
+                        weight: 25,
+                        minScore: 1,
+                        maxScore: 15,
+                        scoreLevels: [
+                            { score: 1, description: "效果差" },
+                            { score: 5, description: "效果一般" },
+                            { score: 10, description: "效果良好" },
+                            { score: 15, description: "效果优秀" }
+                        ]
+                    },
+                    { 
+                        name: "创新性", 
+                        weight: 20,
+                        minScore: 1,
+                        maxScore: 10,
+                        scoreLevels: [
+                            { score: 1, description: "无创新" },
+                            { score: 4, description: "略有创新" },
+                            { score: 7, description: "创新明显" },
+                            { score: 10, description: "创新突出" }
+                        ]
+                    },
+                    { 
+                        name: "安全性", 
+                        weight: 15,
+                        minScore: 1,
+                        maxScore: 10,
+                        scoreLevels: [
+                            { score: 1, description: "不安全" },
+                            { score: 4, description: "基本安全" },
+                            { score: 7, description: "比较安全" },
+                            { score: 10, description: "非常安全" }
+                        ]
+                    },
+                    { 
+                        name: "市场前景", 
+                        weight: 15,
+                        minScore: 1,
+                        maxScore: 10,
+                        scoreLevels: [
+                            { score: 1, description: "前景差" },
+                            { score: 4, description: "前景一般" },
+                            { score: 7, description: "前景良好" },
+                            { score: 10, description: "前景广阔" }
+                        ]
+                    }
+                ],
+                totalScore: 100,
+                isActive: false,
+                createdAt: new Date().getTime(),
+                schemeLink: generateSchemeLink('scheme2')
+            };
+        }
+        
+        // 生成方案链接
+        function generateSchemeLink(schemeId) {
+            const baseUrl = window.location.href.split('#')[0];
+            return `${baseUrl}#mobile&scheme=${schemeId}`;
+        }
+        
+        // 更新方案链接显示
+        function updateSchemeLinks() {
+            if (ratingSchemes['scheme1'] && document.getElementById('schemeLink1')) {
+                document.getElementById('schemeLink1').textContent = ratingSchemes['scheme1'].schemeLink;
+            }
+            if (ratingSchemes['scheme2'] && document.getElementById('schemeLink2')) {
+                document.getElementById('schemeLink2').textContent = ratingSchemes['scheme2'].schemeLink;
+            }
+        }
+        
+        // 复制方案链接
+        function copySchemeLink(schemeId) {
+            const scheme = ratingSchemes[schemeId];
+            if (scheme && scheme.schemeLink) {
+                copyToClipboard(scheme.schemeLink, `✅ ${scheme.name}链接已复制！`);
+            }
+        }
+        
+        // 检测当前版本
+        function detectVersion() {
+            const hash = window.location.hash.replace('#', '');
+            if (hash.includes('mobile')) {
+                currentVersion = 'mobile';
+                document.getElementById('adminPage').style.display = 'none';
+                document.getElementById('mobilePage').style.display = 'block';
+                
+                // 检查是否有指定的方案
+                const schemeMatch = hash.match(/scheme=(\w+)/);
+                if (schemeMatch && ratingSchemes[schemeMatch[1]]) {
+                    currentSchemeId = schemeMatch[1];
+                }
+                
+                // 检查是否有指定的统计方案
+                const scoringMatch = hash.match(/scoring=(\w+)/);
+                if (scoringMatch && (scoringMatch[1] === 'method1' || scoringMatch[1] === 'method2')) {
+                    currentScoringMethod = scoringMatch[1];
+                }
+            } else {
+                currentVersion = 'admin';
+                document.getElementById('adminPage').style.display = 'block';
+                document.getElementById('mobilePage').style.display = 'none';
+            }
+        }
+        
+        // 显示管理端页面
+        function showAdminPage(pageName) {
+            // 隐藏所有管理端页面
+            document.querySelectorAll('#adminPage .admin-content').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // 显示目标页面
+            document.getElementById('admin' + pageName.charAt(0).toUpperCase() + pageName.slice(1) + 'Page').classList.add('active');
+            
+            // 更新导航按钮
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 根据页面名称激活对应按钮
+            const targetBtn = Array.from(document.querySelectorAll('.nav-btn')).find(btn => 
+                btn.textContent.includes(
+                    pageName === 'home' ? '🏠' : 
+                    pageName === 'scheme' ? '📋' : 
+                    pageName === 'results' ? '📊' : '📜'
+                )
+            );
+            
+            if (targetBtn) {
+                targetBtn.classList.add('active');
+            }
+            
+            // 如果是结果页面，刷新数据
+            if (pageName === 'results') {
+                updateAllResults();
+            }
+            
+            // 如果是方案页面，刷新方案列表
+            if (pageName === 'scheme') {
+                updateSchemeList();
+            }
+            
+            // 如果是历史页面，刷新历史列表
+            if (pageName === 'history') {
+                updateRatingHistoryList();
+            }
+        }
+        
+        // 更新组名列表
+        function updateGroupNamesList() {
+            const groupNamesList = document.getElementById('groupNamesList');
+            if (!groupNamesList) return;
+            
+            groupNamesList.innerHTML = '';
+            
+            groupNames.forEach((groupName, index) => {
+                const groupCard = document.createElement('div');
+                groupCard.style.background = 'white';
+                groupCard.style.borderRadius = '15px';
+                groupCard.style.padding = '20px';
+                groupCard.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.1)';
+                groupCard.style.borderLeft = '4px solid #3498db';
+                
+                groupCard.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-weight: 700; font-size: 1.2rem; color: #2c3e50;">${groupName}</div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-secondary" onclick="editGroupName(${index})">✏️ 编辑</button>
+                            <button class="btn btn-danger" onclick="deleteGroupName(${index})" ${groupNames.length <= 1 ? 'disabled' : ''}>🗑️ 删除</button>
+                        </div>
+                    </div>
+                `;
+                
+                groupNamesList.appendChild(groupCard);
+            });
+        }
+        
+        // 显示添加组名
+        function showAddGroupName() {
+            const newGroupName = prompt('请输入新的组名：');
+            if (newGroupName && newGroupName.trim()) {
+                addGroupName(newGroupName.trim());
+            }
+        }
+        
+        // 添加组名
+        function addGroupName(name) {
+            if (groupNames.includes(name)) {
+                showMessage('⚠️ 该组名已存在！', 'warning');
+                return;
+            }
+            
+            groupNames.push(name);
+            groupsData[name] = { scores: [], finalScore: 0 };
+            
+            saveData();
+            updateGroupNamesList();
+            updateGroupSelection();
+            updateAllResults();
+            showMessage('✅ 组名添加成功！');
+        }
+        
+        // 编辑组名
+        function editGroupName(index) {
+            const oldName = groupNames[index];
+            const newName = prompt('请输入新的组名：', oldName);
+            
+            if (newName && newName.trim() && newName !== oldName) {
+                if (groupNames.includes(newName)) {
+                    showMessage('⚠️ 该组名已存在！', 'warning');
+                    return;
+                }
+                
+                // 保留原有的评分数据
+                const oldData = groupsData[oldName];
+                
+                // 更新组名
+                groupNames[index] = newName;
+                
+                // 迁移数据到新组名
+                groupsData[newName] = oldData || { scores: [], finalScore: 0 };
+                delete groupsData[oldName];
+                
+                saveData();
+                updateGroupNamesList();
+                updateGroupSelection();
+                updateAllResults();
+                showMessage('✅ 组名修改成功！');
+            }
+        }
+        
+        // 删除组名
+        function deleteGroupName(index) {
+            const groupName = groupNames[index];
+            
+            if (groupNames.length <= 1) {
+                showMessage('⚠️ 至少需要保留一个组名！', 'warning');
+                return;
+            }
+            
+            const hasScores = groupsData[groupName] && groupsData[groupName].scores.length > 0;
+            
+            if (hasScores) {
+                if (!confirm(`⚠️ 组"${groupName}"已有评分数据，确定要删除吗？此操作将清除该组的所有评分记录！`)) {
+                    return;
+                }
+            } else {
+                if (!confirm(`确定要删除组"${groupName}"吗？`)) {
+                    return;
+                }
+            }
+            
+            // 删除组名
+            groupNames.splice(index, 1);
+            
+            // 删除组数据
+            delete groupsData[groupName];
+            
+            saveData();
+            updateGroupNamesList();
+            updateGroupSelection();
+            updateAllResults();
+            showMessage('✅ 组名删除成功！');
+        }
+        
+        // 更新重评请求列表
+        function updateReRatingRequestsList() {
+            const reRatingRequestsList = document.getElementById('reRatingRequestsList');
+            if (!reRatingRequestsList) return;
+            
+            const pendingRequests = reRatingRequests.filter(req => req.status === 'pending');
+            
+            if (pendingRequests.length === 0) {
+                reRatingRequestsList.innerHTML = '<p style="text-align: center; padding: 20px; color: #7f8c8d;">暂无待处理的重评请求</p>';
+                return;
+            }
+            
+            let html = '';
+            pendingRequests.forEach(request => {
+                html += `
+                    <div style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <div style="font-weight: 700; color: #2c3e50;">${request.userName}</div>
+                                <div style="color: #7f8c8d; font-size: 0.9rem;">申请重评: ${request.groupName}</div>
+                            </div>
+                            <div style="color: #7f8c8d; font-size: 0.85rem;">
+                                ${new Date(request.requestTime).toLocaleString()}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                            <button class="btn" onclick="approveReRating('${request.id}')" style="flex: 1; padding: 8px 15px; font-size: 0.9rem;">✅ 批准</button>
+                            <button class="btn btn-danger" onclick="rejectReRating('${request.id}')" style="flex: 1; padding: 8px 15px; font-size: 0.9rem;">❌ 拒绝</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            reRatingRequestsList.innerHTML = html;
+        }
+        
+        // 批准重评请求
+        async function approveReRating(requestId) {
+            const request = reRatingRequests.find(req => req.id === requestId);
+            if (!request) return;
+            
+            if (!confirm(`确定批准 ${request.userName} 对 ${request.groupName} 的重评请求吗？`)) {
+                return;
+            }
+            
+            // 清除该评委对该组的评分
+            const group = groupsData[request.groupName];
+            if (group) {
+                group.scores = group.scores.filter(score => score.userId !== request.userId);
+                group.finalScore = 0;
+            }
+            
+            // 更新请求状态
+            request.status = 'approved';
+            request.approvedTime = new Date().getTime();
+            
+            await saveData();
+            updateReRatingRequestsList();
+            updateAllResults();
+            showMessage('✅ 已批准重评请求');
+        }
+        
+        // 拒绝重评请求
+        async function rejectReRating(requestId) {
+            const request = reRatingRequests.find(req => req.id === requestId);
+            if (!request) return;
+            
+            if (!confirm(`确定拒绝 ${request.userName} 对 ${request.groupName} 的重评请求吗？`)) {
+                return;
+            }
+            
+            // 更新请求状态
+            request.status = 'rejected';
+            request.rejectedTime = new Date().getTime();
+            
+            await saveData();
+            updateReRatingRequestsList();
+            showMessage('✅ 已拒绝重评请求');
+        }
+        
+        // 更新方案列表
+        function updateSchemeList() {
+            const schemeList = document.getElementById('schemeList');
+            if (!schemeList) return;
+            
+            schemeList.innerHTML = '';
+            
+            Object.keys(ratingSchemes).forEach(schemeId => {
+                const scheme = ratingSchemes[schemeId];
+                const isActive = schemeId === currentSchemeId;
+                
+                const schemeCard = document.createElement('div');
+                schemeCard.className = `scheme-card ${isActive ? 'active' : ''}`;
+                schemeCard.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <div style="font-weight: 700; font-size: 1.2rem; color: #2c3e50;">${scheme.name} ${isActive ? '✅' : ''}</div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn" onclick="useScheme('${schemeId}')" ${isActive ? 'disabled' : ''}>${isActive ? '使用中' : '使用'}</button>
+                            <button class="btn btn-secondary" onclick="editScheme('${schemeId}')">编辑</button>
+                        </div>
+                    </div>
+                    <div style="color: #7f8c8d; margin-bottom: 10px;">${scheme.description}</div>
+                    <div style="margin-top: 15px;">
+                        ${scheme.dimensions.map(dim => `
+                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f8f9fa;">
+                                <span style="font-weight: 600;">${dim.name}</span>
+                                <span style="color: #3498db; font-weight: 600;">${dim.weight}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.9rem; color: #7f8c8d;">
+                        创建时间: ${new Date(scheme.createdAt).toLocaleString()}
+                    </div>
+                `;
+                
+                schemeList.appendChild(schemeCard);
+            });
+        }
+        
+        // 使用方案
+        async function useScheme(schemeId) {
+            currentSchemeId = schemeId;
+            // 更新方案链接
+            ratingSchemes[schemeId].schemeLink = generateSchemeLink(schemeId);
+            await saveData();
+            updateSchemeList();
+            updateCurrentSchemeInfo();
+            updateSchemeLinks();
+            showMessage('✅ 已切换到方案: ' + ratingSchemes[schemeId].name);
+        }
+        
+        // 编辑方案
+        function editScheme(schemeId) {
+            currentEditingScheme = JSON.parse(JSON.stringify(ratingSchemes[schemeId]));
+            showSchemeEditor();
+        }
+        
+        // 新建方案
+        function showSchemeEditorNew() {
+            currentEditingScheme = {
+                id: 'scheme_' + Date.now(),
+                name: '新评分方案',
+                description: '',
+                dimensions: [
+                    {
+                        name: "新维度",
+                        weight: 100,
+                        minScore: 1,
+                        maxScore: 10,
+                        scoreLevels: [
+                            { score: 1, description: "差" },
+                            { score: 5, description: "中" },
+                            { score: 10, description: "优" }
+                        ]
+                    }
+                ],
+                totalScore: 100,
+                isActive: false,
+                createdAt: new Date().getTime(),
+                schemeLink: ''
+            };
+            showSchemeEditor();
+        }
+        
+        // 显示方案编辑器
+        function showSchemeEditor() {
+            document.getElementById('schemeEditor').style.display = 'block';
+            document.getElementById('schemeList').style.display = 'none';
+            
+            const editorTitle = document.getElementById('editorTitle');
+            const schemeName = document.getElementById('schemeName');
+            const schemeDescription = document.getElementById('schemeDescription');
+            const totalScore = document.getElementById('totalScore');
+            
+            editorTitle.textContent = currentEditingScheme.id.includes('scheme_') ? '新建评分方案' : '编辑评分方案: ' + currentEditingScheme.name;
+            schemeName.value = currentEditingScheme.name;
+            schemeDescription.value = currentEditingScheme.description;
+            totalScore.value = currentEditingScheme.totalScore;
+            
+            // 更新维度编辑器
+            updateDimensionEditor();
+        }
+        
+        // 更新维度编辑器
+        function updateDimensionEditor() {
+            const dimensionEditor = document.getElementById('dimensionEditor');
+            dimensionEditor.innerHTML = '';
+            
+            currentEditingScheme.dimensions.forEach((dimension, index) => {
+                const dimensionElement = document.createElement('div');
+                dimensionElement.style.background = '#f8f9fa';
+                dimensionElement.style.borderRadius = '10px';
+                dimensionElement.style.padding = '20px';
+                dimensionElement.style.margin = '15px 0';
+                
+                dimensionElement.innerHTML = `
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 15px; align-items: center; margin-bottom: 15px;">
+                        <input type="text" class="form-input" value="${dimension.name}" placeholder="维度名称" onchange="updateDimension(${index}, 'name', this.value)">
+                        <input type="number" class="form-input" value="${dimension.weight}" placeholder="权重" min="1" max="100" onchange="updateDimension(${index}, 'weight', this.value)">
+                        <input type="number" class="form-input" value="${dimension.minScore}" placeholder="最低分" onchange="updateDimension(${index}, 'minScore', this.value)">
+                        <input type="number" class="form-input" value="${dimension.maxScore}" placeholder="最高分" onchange="updateDimension(${index}, 'maxScore', this.value)">
+                        <button style="background: #e74c3c; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 0.8rem;" 
+                                onclick="removeDimension(${index})" ${currentEditingScheme.dimensions.length <= 1 ? 'disabled' : ''}>删除</button>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <h4>分数等级说明</h4>
+                        ${dimension.scoreLevels.map((level, levelIndex) => `
+                            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-bottom: 10px;">
+                                <input type="number" class="form-input" value="${level.score}" placeholder="分数" onchange="updateScoreLevel(${index}, ${levelIndex}, 'score', this.value)">
+                                <input type="text" class="form-input" value="${level.description}" placeholder="说明" onchange="updateScoreLevel(${index}, ${levelIndex}, 'description', this.value)">
+                                <button style="background: #e74c3c; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 0.8rem;" 
+                                        onclick="removeScoreLevel(${index}, ${levelIndex})" ${dimension.scoreLevels.length <= 1 ? 'disabled' : ''}>删除</button>
+                            </div>
+                        `).join('')}
+                        <button style="background: #2ecc71; color: white; border: none; border-radius: 5px; padding: 8px 15px; cursor: pointer; margin-top: 10px;" 
+                                onclick="addScoreLevel(${index})">➕ 添加分数等级</button>
+                    </div>
+                `;
+                dimensionEditor.appendChild(dimensionElement);
+            });
+        }
+        
+        // 更新维度
+        function updateDimension(index, field, value) {
+            if (field === 'weight') {
+                value = parseInt(value);
+            } else if (field === 'minScore' || field === 'maxScore') {
+                value = parseFloat(value);
+            }
+            currentEditingScheme.dimensions[index][field] = value;
+        }
+        
+        // 更新分数等级
+        function updateScoreLevel(dimensionIndex, levelIndex, field, value) {
+            if (field === 'score') {
+                value = parseFloat(value);
+            }
+            currentEditingScheme.dimensions[dimensionIndex].scoreLevels[levelIndex][field] = value;
+        }
+        
+        // 添加维度
+        function addDimension() {
+            currentEditingScheme.dimensions.push({
+                name: "新维度",
+                weight: 10,
+                minScore: 1,
+                maxScore: 10,
+                scoreLevels: [
+                    { score: 1, description: "差" },
+                    { score: 5, description: "中" },
+                    { score: 10, description: "优" }
+                ]
+            });
+            updateDimensionEditor();
+        }
+        
+        // 删除维度
+        function removeDimension(index) {
+            if (currentEditingScheme.dimensions.length > 1) {
+                currentEditingScheme.dimensions.splice(index, 1);
+                updateDimensionEditor();
+            }
+        }
+        
+        // 添加分数等级
+        function addScoreLevel(dimensionIndex) {
+            currentEditingScheme.dimensions[dimensionIndex].scoreLevels.push({
+                score: 5,
+                description: "中等"
+            });
+            updateDimensionEditor();
+        }
+        
+        // 删除分数等级
+        function removeScoreLevel(dimensionIndex, levelIndex) {
+            if (currentEditingScheme.dimensions[dimensionIndex].scoreLevels.length > 1) {
+                currentEditingScheme.dimensions[dimensionIndex].scoreLevels.splice(levelIndex, 1);
+                updateDimensionEditor();
+            }
+        }
+        
+        // 保存方案
+async function saveScheme() {
+    const schemeName = document.getElementById('schemeName').value;
+    const schemeDescription = document.getElementById('schemeDescription').value;
+    const totalScore = parseInt(document.getElementById('totalScore').value);
+    
+    if (!schemeName.trim()) {
+        showMessage('⚠️ 请输入方案名称', 'warning');
+        return;
+    }
+    
+    currentEditingScheme.name = schemeName;
+    currentEditingScheme.description = schemeDescription;
+    currentEditingScheme.totalScore = totalScore;
+    
+    ratingSchemes[currentEditingScheme.id] = currentEditingScheme;
+    
+    // 更新方案链接
+    ratingSchemes[currentEditingScheme.id].schemeLink = generateSchemeLink(currentEditingScheme.id);
+    
+    await saveData();
+    cancelEdit();
+    updateSchemeList();
+    updateSchemeLinks();
+    showMessage('✅ 方案保存成功！');
+}
+        
+        // 取消编辑
+        function cancelEdit() {
+            document.getElementById('schemeEditor').style.display = 'none';
+            document.getElementById('schemeList').style.display = 'block';
+            currentEditingScheme = null;
+        }
+        
+        // 导出方案
+        function exportSchemes() {
+            const dataStr = JSON.stringify(ratingSchemes, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `评分方案_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`;
+            link.click();
+            showMessage('✅ 评分方案导出成功！');
+        }
+        
+        // 导出方案到云端
+        async function exportSchemesToCloud() {
+            showMessage('📊 正在导出方案到云端...', 'info');
+            
+            try {
+                // 先获取当前云端数据
+                const response = await axios.get(JSONBIN_API_URL, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_API_KEY
+                    }
+                });
+                
+                const cloudData = response.data.record;
+                
+                // 更新云端数据中的评分方案
+                cloudData.ratingSchemes = ratingSchemes;
+                
+                // 保存回云端
+                await axios.put(JSONBIN_API_URL, cloudData, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_API_KEY
+                    }
+                });
+                
+                showMessage('✅ 评分方案已成功导出到云端！');
+            } catch (error) {
+                console.error('导出方案到云端失败:', error);
+                showMessage('⚠️ 导出方案到云端失败，请检查网络连接', 'warning');
+            }
+        }
+        
+        // 导入方案
+        async function importSchemes() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    try {
+                        const importedSchemes = JSON.parse(e.target.result);
+                        if (typeof importedSchemes === 'object') {
+                            Object.keys(importedSchemes).forEach(schemeId => {
+                                ratingSchemes[schemeId] = importedSchemes[schemeId];
+                                // 更新方案链接
+                                ratingSchemes[schemeId].schemeLink = generateSchemeLink(schemeId);
+                            });
+                            await saveData();
+                            updateSchemeList();
+                            updateSchemeLinks();
+                            showMessage('✅ 评分方案导入成功！');
+                        } else {
+                            showMessage('⚠️ 文件格式不正确', 'warning');
+                        }
+                    } catch (error) {
+                        showMessage('⚠️ 文件读取失败，请检查文件格式', 'warning');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+        
+        // 从云端导入方案
+        async function importSchemesFromCloud() {
+            showMessage('📊 正在从云端加载方案...', 'info');
+            
+            try {
+                const response = await axios.get(JSONBIN_API_URL, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_API_KEY
+                    }
+                });
+                
+                const cloudData = response.data.record;
+                
+                if (cloudData && cloudData.ratingSchemes) {
+                    showCloudSchemeSelector(cloudData.ratingSchemes);
+                } else {
+                    showMessage('⚠️ 云端数据中没有找到方案', 'warning');
+                }
+            } catch (error) {
+                console.error('从云端导入失败:', error);
+                showMessage('⚠️ 从云端导入失败，请检查网络连接', 'warning');
+            }
+        }
+        
+        // 显示云端方案选择器
+        function showCloudSchemeSelector(cloudSchemes) {
+            const schemeList = document.getElementById('schemeList');
+            const schemeEditor = document.getElementById('schemeEditor');
+            
+            if (!schemeList || !schemeEditor) return;
+            
+            let html = '<div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">';
+            html += '<h3 style="color: #2c3e50; margin-bottom: 15px;">☁️ 云端方案列表</h3>';
+            
+            const schemeIds = Object.keys(cloudSchemes);
+            
+            if (schemeIds.length === 0) {
+                html += '<p style="color: #7f8c8d;">云端暂无方案</p>';
+            } else {
+                schemeIds.forEach(schemeId => {
+                    const scheme = cloudSchemes[schemeId];
+                    const localScheme = ratingSchemes[schemeId];
+                    const isLocal = !!localScheme;
+                    const isUpdated = localScheme && scheme.createdAt > localScheme.createdAt;
+                    
+                    html += `
+                        <div style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div style="font-weight: 700; color: #2c3e50;">${scheme.name}</div>
+                                <div style="font-size: 0.8rem; color: ${isUpdated ? '#e74c3c' : '#7f8c8d'};">
+                                    ${isUpdated ? '🆕 有更新' : (isLocal ? '✓ 已同步' : '📥 新方案')}
+                                </div>
+                            </div>
+                            <div style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 10px;">${scheme.description}</div>
+                            <div style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 15px;">
+                                创建时间: ${new Date(scheme.createdAt).toLocaleString()}
+                            </div>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button class="btn" onclick="importSingleScheme('${schemeId}')" style="padding: 8px 15px; font-size: 0.9rem;">📥 导入</button>
+                                <button class="btn btn-secondary" onclick="editCloudScheme('${schemeId}')" style="padding: 8px 15px; font-size: 0.9rem;">✏️ 编辑后导入</button>
+                                ${isLocal ? `<button class="btn btn-warning" onclick="replaceLocalScheme('${schemeId}')" style="padding: 8px 15px; font-size: 0.9rem;">🔄 替换本地</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += '<button class="btn" onclick="cancelCloudImport()" style="width: 100%; margin-top: 15px;">❌ 取消</button>';
+            html += '</div>';
+            
+            schemeList.innerHTML = html;
+            schemeEditor.style.display = 'none';
+        }
+        
+        // 导入单个方案
+        async function importSingleScheme(schemeId) {
+            try {
+                const response = await axios.get(JSONBIN_API_URL, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_API_KEY
+                    }
+                });
+                
+                const cloudData = response.data.record;
+                const scheme = cloudData.ratingSchemes[schemeId];
+                
+                if (scheme) {
+                    ratingSchemes[schemeId] = scheme;
+                    ratingSchemes[schemeId].schemeLink = generateSchemeLink(schemeId);
+                    
+                    await saveData();
+                    updateSchemeList();
+                    updateSchemeLinks();
+                    showMessage('✅ 方案导入成功！');
+                }
+            } catch (error) {
+                console.error('导入方案失败:', error);
+                showMessage('⚠️ 导入方案失败', 'warning');
+            }
+        }
+        
+        // 编辑云端方案
+        async function editCloudScheme(schemeId) {
+            try {
+                const response = await axios.get(JSONBIN_API_URL, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_API_KEY
+                    }
+                });
+                
+                const cloudData = response.data.record;
+                const scheme = cloudData.ratingSchemes[schemeId];
+                
+                if (scheme) {
+                    currentEditingScheme = JSON.parse(JSON.stringify(scheme));
+                    currentEditingScheme.id = 'scheme_' + Date.now();
+                    showSchemeEditor();
+                    showMessage('✅ 已加载云端方案，编辑后点击保存即可导入');
+                }
+            } catch (error) {
+                console.error('加载云端方案失败:', error);
+                showMessage('⚠️ 加载云端方案失败', 'warning');
+            }
+        }
+        
+        // 替换本地方案
+        async function replaceLocalScheme(schemeId) {
+            if (!confirm('确定要替换本地方案吗？本地方案将被覆盖！')) {
+                return;
+            }
+            
+            try {
+                const response = await axios.get(JSONBIN_API_URL, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_API_KEY
+                    }
+                });
+                
+                const cloudData = response.data.record;
+                const scheme = cloudData.ratingSchemes[schemeId];
+                
+                if (scheme) {
+                    ratingSchemes[schemeId] = scheme;
+                    ratingSchemes[schemeId].schemeLink = generateSchemeLink(schemeId);
+                    
+                    await saveData();
+                    updateSchemeList();
+                    updateSchemeLinks();
+                    showMessage('✅ 本地方案已替换！');
+                }
+            } catch (error) {
+                console.error('替换方案失败:', error);
+                showMessage('⚠️ 替换方案失败', 'warning');
+            }
+        }
+        
+        // 取消云端导入
+        function cancelCloudImport() {
+            updateSchemeList();
+            document.getElementById('schemeEditor').style.display = 'none';
+        }
+        
+        // 保存当前评分到历史
+        async function saveCurrentRatingToHistory() {
+            const historyName = prompt('请输入历史记录名称：', `评分记录_${new Date().toLocaleDateString().replace(/\//g, '-')}`);
+            
+            if (!historyName || !historyName.trim()) {
+                showMessage('⚠️ 请输入历史记录名称', 'warning');
+                return;
+            }
+            
+            const historyRecord = {
+                id: 'history_' + Date.now(),
+                name: historyName.trim(),
+                saveTime: new Date().getTime(),
+                schemeId: currentSchemeId,
+                scheme: JSON.parse(JSON.stringify(ratingSchemes[currentSchemeId])),
+                scoringMethod: currentScoringMethod,
+                groupNames: [...groupNames],
+                groupsData: JSON.parse(JSON.stringify(groupsData)),
+                summary: {
+                    totalRatings: 0,
+                    totalGroups: groupNames.length,
+                    ratedGroups: 0,
+                    ranking: []
+                }
+            };
+            
+            // 计算摘要信息
+            Object.keys(historyRecord.groupsData).forEach(groupName => {
+                const group = historyRecord.groupsData[groupName];
+                historyRecord.summary.totalRatings += group.scores.length;
+                
+                if (group.scores.length > 0) {
+                    historyRecord.summary.ratedGroups++;
+                }
+                
+                historyRecord.summary.ranking.push({
+                    group: groupName,
+                    finalScore: group.finalScore,
+                    ratingCount: group.scores.length
+                });
+            });
+            
+            historyRecord.summary.ranking.sort((a, b) => b.finalScore - a.finalScore);
+            
+            ratingHistory.push(historyRecord);
+            await saveData();
+            updateRatingHistoryList();
+            showMessage('✅ 评分历史已保存！');
+        }
+        
+        // 更新评分历史列表
+        function updateRatingHistoryList() {
+            const ratingHistoryList = document.getElementById('ratingHistoryList');
+            if (!ratingHistoryList) return;
+            
+            if (ratingHistory.length === 0) {
+                ratingHistoryList.innerHTML = '<p style="text-align: center; padding: 40px; color: #7f8c8d;">暂无评分历史记录</p>';
+                return;
+            }
+            
+            let html = '';
+            ratingHistory.forEach((history, index) => {
+                const rankedGroups = history.summary.ranking.slice(0, 3);
+                
+                html += `
+                    <div style="background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <div>
+                                <div style="font-weight: 700; font-size: 1.2rem; color: #2c3e50;">${history.name}</div>
+                                <div style="color: #7f8c8d; font-size: 0.9rem;">${new Date(history.saveTime).toLocaleString()}</div>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn" onclick="viewHistory(${index})" style="padding: 8px 15px; font-size: 0.9rem;">👁️ 查看</button>
+                                <button class="btn btn-danger" onclick="deleteHistory(${index})" style="padding: 8px 15px; font-size: 0.9rem;">🗑️ 删除</button>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                            <div style="font-weight: 600; color: #2c3e50; margin-bottom: 10px;">📊 评分方案: ${history.scheme.name}</div>
+                            <div style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 5px;">
+                                统计方法: ${history.scoringMethod === 'method1' ? '去极值平均法' : '简单平均法'}
+                            </div>
+                            <div style="color: #7f8c8d; font-size: 0.9rem;">
+                                评分组数: ${history.summary.ratedGroups}/${history.summary.totalGroups} | 总评分次数: ${history.summary.totalRatings}
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 10px;">
+                            <div style="font-weight: 600; color: #2c3e50; margin-bottom: 10px;">🏆 前三名</div>
+                            ${rankedGroups.map((item, idx) => `
+                                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
+                                    <span style="color: ${idx === 0 ? '#f39c12' : idx === 1 ? '#95a5a6' : '#cd7f32'};">
+                                        ${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} ${item.group}
+                                    </span>
+                                    <span style="font-weight: 600; color: #3498db;">${item.finalScore.toFixed(1)}分</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            ratingHistoryList.innerHTML = html;
+        }
+        
+        // 查看历史详情
+        function viewHistory(index) {
+            const history = ratingHistory[index];
+            if (!history) return;
+            
+            let detailsHtml = `
+                <div style="background: white; border-radius: 15px; padding: 25px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0;">
+                        <div>
+                            <h3 style="color: #2c3e50; margin-bottom: 5px;">${history.name}</h3>
+                            <div style="color: #7f8c8d; font-size: 0.9rem;">${new Date(history.saveTime).toLocaleString()}</div>
+                        </div>
+                        <button class="btn" onclick="closeHistoryDetail()" style="padding: 8px 15px;">❌ 关闭</button>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: #3498db; margin-bottom: 10px;">📋 评分方案</h4>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
+                            <div style="font-weight: 600; margin-bottom: 5px;">${history.scheme.name}</div>
+                            <div style="color: #7f8c8d; font-size: 0.9rem;">${history.scheme.description}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: #3498db; margin-bottom: 10px;">📊 评分结果</h4>
+                        ${history.summary.ranking.map((item, idx) => `
+                            <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+                                <span style="font-weight: 600;">
+                                    ${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `第${idx + 1}名`} ${item.group}
+                                </span>
+                                <span style="font-weight: 600; color: #3498db;">${item.finalScore.toFixed(1)}分 (${item.ratingCount}次评分)</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: #3498db; margin-bottom: 10px;">📈 统计信息</h4>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
+                            <div style="margin-bottom: 5px;">评分组数: ${history.summary.ratedGroups}/${history.summary.totalGroups}</div>
+                            <div style="margin-bottom: 5px;">总评分次数: ${history.summary.totalRatings}</div>
+                            <div>统计方法: ${history.scoringMethod === 'method1' ? '去极值平均法' : '简单平均法'}</div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 style="color: #3498db; margin-bottom: 10px;">📥 导出历史数据</h4>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn" onclick="exportHistoryToExcel(${index})" style="padding: 8px 15px;">📊 导出Excel</button>
+                            <button class="btn btn-secondary" onclick="exportHistoryToWord(${index})" style="padding: 8px 15px;">📄 导出Word</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const ratingHistoryList = document.getElementById('ratingHistoryList');
+            ratingHistoryList.innerHTML = detailsHtml;
+        }
+        
+        // 关闭历史详情
+        function closeHistoryDetail() {
+            updateRatingHistoryList();
+        }
+        
+        // 删除历史记录
+        async function deleteHistory(index) {
+            const history = ratingHistory[index];
+            if (!history) return;
+            
+            if (!confirm(`确定要删除历史记录"${history.name}"吗？`)) {
+                return;
+            }
+            
+            ratingHistory.splice(index, 1);
+            await saveData();
+            updateRatingHistoryList();
+            showMessage('✅ 历史记录已删除！');
+        }
+        
+        // 导出历史到Excel
+        function exportHistoryToExcel(index) {
+            const history = ratingHistory[index];
+            if (!history) return;
+            
+            try {
+                const wb = XLSX.utils.book_new();
+                
+                const summaryData = [
+                    ['历史记录名称', history.name],
+                    ['保存时间', new Date(history.saveTime).toLocaleString()],
+                    ['评分方案', history.scheme.name],
+                    ['统计方法', history.scoringMethod === 'method1' ? '去极值平均法' : '简单平均法'],
+                    [''],
+                    ['排名', '组别', '最终得分', '评分次数']
+                ];
+                
+                history.summary.ranking.forEach((item, idx) => {
+                    summaryData.push([idx + 1, item.group, item.finalScore.toFixed(1), item.ratingCount]);
+                });
+                
+                const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+                XLSX.utils.book_append_sheet(wb, wsSummary, '评分结果');
+                
+                const fileName = `${history.name}_${new Date(history.saveTime).toLocaleDateString().replace(/\//g, '-')}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                showMessage('✅ 历史数据导出成功！');
+            } catch (error) {
+                console.error('导出历史Excel失败:', error);
+                showMessage('⚠️ 导出失败，请重试', 'warning');
+            }
+        }
+        
+        // 导出历史到Word
+        function exportHistoryToWord(index) {
+            const history = ratingHistory[index];
+            if (!history) return;
+            
+            try {
+                let content = `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' 
+                      xmlns:w='urn:schemas-microsoft-com:office:word' 
+                      xmlns='http://www.w3.org/TR/REC-html40'>
+                <head>
+                    <meta charset="utf-8">
+                    <title>${history.name}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+                        h1 { color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+                        h2 { color: #3498db; border-left: 4px solid #3498db; padding-left: 10px; }
+                        table { width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #ddd; }
+                        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+                        th { background-color: #f8f9fa; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <h1>${history.name}</h1>
+                    <p><strong>保存时间：</strong>${new Date(history.saveTime).toLocaleString()}</p>
+                    
+                    <h2>📋 评分方案</h2>
+                    <p><strong>方案名称：</strong>${history.scheme.name}</p>
+                    <p><strong>方案描述：</strong>${history.scheme.description}</p>
+                    <p><strong>统计方法：</strong>${history.scoringMethod === 'method1' ? '去极值平均法' : '简单平均法'}</p>
+                    
+                    <h2>📊 评分结果</h2>
+                    <table>
+                        <tr>
+                            <th>排名</th>
+                            <th>组别</th>
+                            <th>最终得分</th>
+                            <th>评分次数</th>
+                        </tr>
+                `;
+                
+                history.summary.ranking.forEach((item, idx) => {
+                    content += `
+                        <tr>
+                            <td>第${idx + 1}名</td>
+                            <td>${item.group}</td>
+                            <td><strong>${item.finalScore.toFixed(1)}</strong></td>
+                            <td>${item.ratingCount}次</td>
+                        </tr>
+                    `;
+                });
+                
+                content += `
+                    </table>
+                    
+                    <h2>📈 统计信息</h2>
+                    <p><strong>评分组数：</strong>${history.summary.ratedGroups}/${history.summary.totalGroups}</p>
+                    <p><strong>总评分次数：</strong>${history.summary.totalRatings}</p>
+                    
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666;">
+                        <p>报告生成时间: ${new Date().toLocaleString()}</p>
+                        <p>评分系统 v1.0</p>
+                    </div>
+                </body>
+                </html>
+                `;
+                
+                const blob = new Blob([content], {type: 'application/msword'});
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${history.name}_${new Date(history.saveTime).toLocaleDateString().replace(/\//g, '-')}.doc`;
+                link.click();
+                
+                showMessage('✅ 历史数据导出成功！');
+            } catch (error) {
+                console.error('导出历史Word失败:', error);
+                showMessage('⚠️ 导出失败，请重试', 'warning');
+            }
+        }
+        
+        // 更新当前方案信息
+        function updateCurrentSchemeInfo() {
+            const activeSchemeDisplay = document.getElementById('activeSchemeDisplay');
+            if (!activeSchemeDisplay) return;
+            
+            const scheme = ratingSchemes[currentSchemeId];
+            if (!scheme) return;
+            
+            activeSchemeDisplay.innerHTML = `
+                <div style="background: #e8f4fd; padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #3498db; margin-bottom: 10px;">${scheme.name}</h4>
+                    <p style="color: #7f8c8d;">${scheme.description}</p>
+                    <div style="margin-top: 15px;">
+                        ${scheme.dimensions.map(dim => `
+                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f0f0f0;">
+                                <span>${dim.name}</span>
+                                <span style="color: #3498db; font-weight: 600;">${dim.weight}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #f0f0f0;">
+                        <div style="color: #7f8c8d; font-size: 0.9rem;">
+                            总分: ${scheme.totalScore}分 | 创建时间: ${new Date(scheme.createdAt).toLocaleString()}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 更新统计方案UI
+        function updateScoringMethodUI() {
+            const method1Card = document.getElementById('method1Card');
+            const method2Card = document.getElementById('method2Card');
+            
+            if (!method1Card || !method2Card) return;
+            
+            if (currentScoringMethod === 'method1') {
+                method1Card.style.borderColor = '#3498db';
+                method1Card.style.background = '#e8f4fd';
+                method1Card.querySelector('div:last-child').textContent = '当前使用中';
+                method1Card.querySelector('div:last-child').style.color = '#3498db';
+                
+                method2Card.style.borderColor = '#e9ecef';
+                method2Card.style.background = 'white';
+                method2Card.querySelector('div:last-child').textContent = '点击选择';
+                method2Card.querySelector('div:last-child').style.color = '#7f8c8d';
+            } else {
+                method2Card.style.borderColor = '#3498db';
+                method2Card.style.background = '#e8f4fd';
+                method2Card.querySelector('div:last-child').textContent = '当前使用中';
+                method2Card.querySelector('div:last-child').style.color = '#3498db';
+                
+                method1Card.style.borderColor = '#e9ecef';
+                method1Card.style.background = 'white';
+                method1Card.querySelector('div:last-child').textContent = '点击选择';
+                method1Card.querySelector('div:last-child').style.color = '#7f8c8d';
+            }
+        }
+
+        // 选择统计方案
+        function selectScoringMethod(method) {
+            const method1Card = document.getElementById('method1Card');
+            const method2Card = document.getElementById('method2Card');
+            
+            if (method === 'method1') {
+                method1Card.style.borderColor = '#3498db';
+                method1Card.style.background = '#e8f4fd';
+                method1Card.querySelector('div:last-child').textContent = '当前使用中';
+                method1Card.querySelector('div:last-child').style.color = '#3498db';
+                
+                method2Card.style.borderColor = '#e9ecef';
+                method2Card.style.background = 'white';
+                method2Card.querySelector('div:last-child').textContent = '点击选择';
+                method2Card.querySelector('div:last-child').style.color = '#7f8c8d';
+            } else {
+                method2Card.style.borderColor = '#3498db';
+                method2Card.style.background = '#e8f4fd';
+                method2Card.querySelector('div:last-child').textContent = '当前使用中';
+                method2Card.querySelector('div:last-child').style.color = '#3498db';
+                
+                method1Card.style.borderColor = '#e9ecef';
+                method1Card.style.background = 'white';
+                method1Card.querySelector('div:last-child').textContent = '点击选择';
+                method1Card.querySelector('div:last-child').style.color = '#7f8c8d';
+            }
+        }
+        
+        // 应用统计方案
+        async function applyScoringMethod() {
+            const method1Card = document.getElementById('method1Card');
+            const method2Card = document.getElementById('method2Card');
+            
+            if (method1Card.style.borderColor === 'rgb(52, 152, 219)') {
+                currentScoringMethod = 'method1';
+            } else if (method2Card.style.borderColor === 'rgb(52, 152, 219)') {
+                currentScoringMethod = 'method2';
+            }
+            
+            await saveData();
+            calculateFinalScores();
+            updateAllResults();
+            updateShareLinks();
+            showMessage('✅ 统计方案已应用！');
+        }
+        
+        // 更新分享链接
+        function updateShareLinks() {
+            const baseUrl = window.location.href.split('#')[0];
+            
+            // 管理版链接
+            const adminUrl = baseUrl;
+            
+            // 评分版链接（包含评分方案和统计方案）
+            const ratingUrl = baseUrl + `#mobile&scheme=${currentSchemeId}&scoring=${currentScoringMethod}`;
+            
+            document.getElementById('adminLink').textContent = adminUrl;
+            document.getElementById('ratingLink').textContent = ratingUrl;
+        }
+        
+        // 复制管理版链接
+        function copyAdminLink() {
+            const link = window.location.href.split('#')[0];
+            copyToClipboard(link, '✅ 管理版链接已复制！');
+        }
+        
+        // 复制评分版链接
+        function copyRatingLink() {
+            const link = window.location.href.split('#')[0] + '#mobile';
+            copyToClipboard(link, '✅ 评分版链接已复制！请分享给评委。');
+        }
+        
+        // 复制到剪贴板
+        function copyToClipboard(text, successMessage) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showMessage(successMessage);
+                }).catch(() => {
+                    fallbackCopy(text, successMessage);
+                });
+            } else {
+                fallbackCopy(text, successMessage);
+            }
+        }
+        
+        // 备用复制方法
+        function fallbackCopy(text, successMessage) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showMessage(successMessage);
+        }
+        
+        // 选择评分组
+function selectGroup(groupName) {
+    if (hasUserRated(groupName)) {
+        showReviewPage(groupName);
+        return;
+    }
+    
+    currentRatingGroup = groupName;
+    createRatingPage(groupName);
+}
+        
+        // 创建评分页面
+        function createRatingPage(groupName) {
+            const ratingPage = document.getElementById('mobileRatingPage');
+            const scheme = ratingSchemes[currentSchemeId];
+            
+            if (!scheme) {
+                showMessage('⚠️ 评分方案未找到', 'warning');
+                return;
+            }
+            
+            let dimensionsHTML = '';
+            scheme.dimensions.forEach((dimension, index) => {
+                dimensionsHTML += `
+                    <div class="rating-item">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <span style="font-weight: 600;">${dimension.name} (${dimension.weight}%)</span>
+                            <span id="score${index}Value" style="font-weight: 600; color: #3498db;">${dimension.minScore}</span>
+                        </div>
+                        <input type="range" min="${dimension.minScore}" max="${dimension.maxScore}" step="0.5" 
+                               value="${dimension.minScore}" class="dimension-slider" id="score${index}">
+                        <div style="display: flex; justify-content: space-between; color: #7f8c8d; font-size: 0.9rem; margin-top: 10px; font-weight: 600;">
+                            <span>${dimension.minScore}分</span>
+                            <span>${(dimension.minScore + dimension.maxScore) / 2}分</span>
+                            <span>${dimension.maxScore}分</span>
+                        </div>
+                        <div style="margin-top: 10px; font-size: 0.9rem; color: #7f8c8d;">
+                            ${dimension.scoreLevels.map(level => `${level.score}分: ${level.description}`).join(' | ')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            ratingPage.innerHTML = `
+                <div class="page-header">
+                    <h1>${groupName} 评分</h1>
+                    <p>使用方案: ${scheme.name}</p>
+                </div>
+                
+                <div class="mobile-content">
+                    ${dimensionsHTML}
+                    
+                    <!-- 总分显示 -->
+                    <div class="total-score">
+                        <div style="font-size: 1.1rem; margin-bottom: 5px;">加权总分</div>
+                        <div style="font-size: 2.5rem; font-weight: 800;" id="totalScore">0.0</div>
+                        <div style="margin-top: 10px; font-size: 0.85rem; opacity: 0.9;">
+                            （已自动计算加权总分）
+                        </div>
+                    </div>
+                    
+                    <!-- 提交按钮 -->
+                    <button class="submit-btn" onclick="submitRating()" id="submitBtn">
+                        📤 提交评分
+                    </button>
+                    
+                    <!-- 返回按钮 -->
+                    <button class="submit-btn" onclick="showMobilePage('group')" style="background: #95a5a6; margin-top: 10px;">
+                        ↩️ 返回选择
+                    </button>
+                </div>
+            `;
+            
+            // 绑定滑块事件
+            bindSliderEvents(scheme.dimensions.length);
+            
+            // 显示评分页面
+            showMobilePage('rating');
+        }
+        
+        // 创建查看评分页面
+function showReviewPage(groupName) {
+    const reviewPage = document.getElementById('mobileReviewPage');
+    const userScore = getUserRating(groupName);
+    const scheme = ratingSchemes[currentSchemeId];
+    
+    if (!userScore || !scheme) {
+        showMessage('⚠️ 评分数据未找到', 'warning');
+        return;
+    }
+            
+            let reviewItemsHTML = '';
+            scheme.dimensions.forEach((dimension, index) => {
+                const score = userScore[`dimension${index}`] || 0;
+                reviewItemsHTML += `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding: 8px 0; border-bottom: 1px solid #f8f9fa;">
+                        <span style="font-weight: 600; color: #2c3e50;">${dimension.name} (${dimension.weight}%)</span>
+                        <span style="color: #3498db; font-weight: 600;">${score}</span>
+                    </div>
+                `;
+            });
+            
+            reviewPage.innerHTML = `
+                <div class="page-header">
+                    <h1>${groupName} 评分详情</h1>
+                    <p>您已完成的评分</p>
+                </div>
+                
+                <div class="mobile-content">
+                    <div style="background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                            <h3>您的评分</h3>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #3498db;">${userScore.total.toFixed(1)}</div>
+                        </div>
+                        
+                        ${reviewItemsHTML}
+                        
+                        <div style="display: flex; justify-content: space-between; padding-top: 10px; margin-top: 10px; border-top: 1px solid #eee;">
+                            <span style="font-weight: 700;">加权总分</span>
+                            <span style="font-weight: 700; color: #3498db;">${userScore.total.toFixed(1)}</span>
+                        </div>
+                    </div>
+                    
+                    <button class="submit-btn" onclick="requestReRating('${groupName}')" style="background: #f39c12; margin-bottom: 10px;">
+                        🔄 申请重评
+                    </button>
+                    
+                    <!-- 返回按钮 -->
+                    <button class="submit-btn" onclick="showMobilePage('group')" style="background: #95a5a6; margin-top: 10px;">
+                        ↩️ 返回选择
+                    </button>
+                </div>
+            `;
+            
+            // 显示查看评分页面
+            showMobilePage('review');
+        }
+        
+        // 绑定滑块事件
+        function bindSliderEvents(dimensionCount) {
+            for (let i = 0; i < dimensionCount; i++) {
+                const slider = document.getElementById('score' + i);
+                if (slider) {
+                    slider.addEventListener('input', function() {
+                        document.getElementById('score' + i + 'Value').textContent = slider.value;
+                        updateTotalScore(dimensionCount);
+                    });
+                }
+            }
+        }
+        
+        // 更新总分
+function updateTotalScore(dimensionCount) {
+    const scheme = ratingSchemes[currentSchemeId];
+    if (!scheme) return;
+    
+    let total = 0;
+    scheme.dimensions.forEach((dimension, index) => {
+        const slider = document.getElementById('score' + index);
+        if (slider) {
+            const score = parseFloat(slider.value);
+            // 计算加权分数：(分数 / 最大分) * 权重 * 总分 / 100
+            const weightedScore = (score / dimension.maxScore) * dimension.weight * scheme.totalScore / 100;
+            total += weightedScore;
+        }
+    });
+    
+    if (document.getElementById('totalScore')) {
+        document.getElementById('totalScore').textContent = total.toFixed(1);
+    }
+}
+
+// 显示手机端页面
+function showMobilePage(pageName) {
+    // 隐藏所有手机端页面
+    document.querySelectorAll('#mobilePage .page').forEach(page => {
+        page.classList.remove('active');
+    });
+    
+    // 显示目标页面
+    document.getElementById('mobile' + pageName.charAt(0).toUpperCase() + pageName.slice(1) + 'Page').classList.add('active');
+}
+
+// 申请重评
+async function requestReRating(groupName) {
+            const userId = getCurrentUserId();
+            
+            // 检查是否已经有待处理的重评请求
+            const existingRequest = reRatingRequests.find(req => 
+                req.userId === userId && req.groupName === groupName && req.status === 'pending'
+            );
+            
+            if (existingRequest) {
+                showMessage('⚠️ 您已提交重评申请，请等待管理员审批', 'warning');
+                return;
+            }
+            
+            // 创建重评请求
+            const request = {
+                id: 'req_' + Date.now(),
+                userId: userId,
+                userName: '评委' + userId.substring(0, 8),
+                groupName: groupName,
+                requestTime: new Date().getTime(),
+                status: 'pending'
+            };
+            
+            reRatingRequests.push(request);
+            await saveData();
+            updateMyReRatingRequests();
+            showMessage('✅ 重评申请已提交，请等待管理员审批');
+        }
+        
+        // 更新评委端重评请求列表
+        function updateMyReRatingRequests() {
+            const myReRatingRequestsDiv = document.getElementById('myReRatingRequests');
+            if (!myReRatingRequestsDiv) return;
+            
+            const userId = getCurrentUserId();
+            const myRequests = reRatingRequests.filter(req => req.userId === userId);
+            
+            if (myRequests.length === 0) {
+                myReRatingRequestsDiv.innerHTML = '<p style="text-align: center; padding: 20px; color: #7f8c8d;">暂无重评请求</p>';
+                return;
+            }
+            
+            let html = '';
+            myRequests.forEach(request => {
+                let statusText = '';
+                let statusColor = '';
+                let actionText = '';
+                
+                if (request.status === 'pending') {
+                    statusText = '⏳ 待审批';
+                    statusColor = '#f39c12';
+                    actionText = '请等待管理员审批';
+                } else if (request.status === 'approved') {
+                    statusText = '✅ 已批准';
+                    statusColor = '#2ecc71';
+                    actionText = '现在可以重新评分了！';
+                } else if (request.status === 'rejected') {
+                    statusText = '❌ 已拒绝';
+                    statusColor = '#e74c3c';
+                    actionText = '重评申请被拒绝';
+                }
+                
+                html += `
+                    <div style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <div style="font-weight: 700; color: #2c3e50;">${request.groupName}</div>
+                                <div style="color: #7f8c8d; font-size: 0.85rem;">
+                                    ${new Date(request.requestTime).toLocaleString()}
+                                </div>
+                            </div>
+                            <div style="font-weight: 600; color: ${statusColor}; font-size: 0.9rem;">
+                                ${statusText}
+                            </div>
+                        </div>
+                        <div style="color: #7f8c8d; font-size: 0.9rem; text-align: center;">
+                            ${actionText}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            myReRatingRequestsDiv.innerHTML = html;
+        }
+        
+        // 提交评分
+        async function submitRating() {
+            if (isSubmitting) {
+                showMessage('⚠️ 正在提交中，请稍候...', 'warning');
+                return;
+            }
+            
+            if (!currentRatingGroup) {
+                showMessage('⚠️ 请先选择要评分的组别', 'warning');
+                return;
+            }
+            
+            const scheme = ratingSchemes[currentSchemeId];
+            if (!scheme) {
+                showMessage('⚠️ 评分方案未找到', 'warning');
+                return;
+            }
+            
+            isSubmitting = true;
+            const submitBtn = document.getElementById('submitBtn');
+            const groupName = currentRatingGroup;
+            
+            // 禁用提交按钮
+            submitBtn.disabled = true;
+            submitBtn.textContent = '提交中...';
+            
+            // 收集评分数据
+            const rating = {
+                timestamp: new Date().getTime(),
+                schemeId: currentSchemeId,
+                total: parseFloat(document.getElementById('totalScore').textContent),
+                userId: getCurrentUserId()
+            };
+            
+            // 添加各维度分数
+            scheme.dimensions.forEach((dimension, index) => {
+                const slider = document.getElementById('score' + index);
+                if (slider) {
+                    rating[`dimension${index}`] = parseFloat(slider.value);
+                }
+            });
+            
+            console.log('提交评分:', rating);
+            
+            // 保存评分到云端
+            groupsData[groupName].scores.push(rating);
+            
+            // 重新计算最终得分
+            calculateFinalScores();
+            
+            // 保存数据到云端
+            await saveData();
+            
+            // 显示成功消息
+            showMessage('✅ ' + groupName + ' 评分提交成功！');
+            
+            // 3秒后返回选择页面
+            setTimeout(() => {
+                // 恢复提交按钮
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📤 提交评分';
+                
+                // 返回选择页面并更新状态
+                showMobilePage('group');
+                updateGroupSelection();
+                updateMyReRatingRequests();
+                
+                isSubmitting = false;
+                
+            }, 3000);
+        }
+
+// 更新组选择界面
+function updateGroupSelection() {
+    const groupSelectionContainer = document.getElementById('groupSelectionContainer');
+    if (!groupSelectionContainer) return;
+    
+    groupSelectionContainer.innerHTML = '';
+    
+    let completedCount = 0;
+    
+    groupNames.forEach((groupName, index) => {
+        const groupBtn = document.createElement('div');
+        groupBtn.className = 'group-btn';
+        groupBtn.id = 'groupBtn' + (index + 1);
+        
+        const hasRated = hasUserRated(groupName);
+        const icon = index === 0 ? '🧴' : '💆';
+        
+        if (hasRated) {
+            groupBtn.classList.add('completed');
+            completedCount++;
+        }
+        
+        groupBtn.innerHTML = `
+            <div style="font-size: 2rem;">${icon}</div>
+            <div style="font-weight: 600; margin: 10px 0;">${groupName}</div>
+            <div style="font-size: 0.9rem; opacity: 0.8;" id="groupStatus${index + 1}">${hasRated ? '已评分 ✓' : '待评分'}</div>
+        `;
+        
+        groupBtn.onclick = function() {
+            selectGroup(groupName);
+        };
+        
+        groupSelectionContainer.appendChild(groupBtn);
+    });
+    
+    // 更新进度
+    const completedCountElement = document.getElementById('completedCount');
+    if (completedCountElement) {
+        completedCountElement.textContent = `${completedCount}/${groupNames.length}`;
+    }
+}
+
+// 计算最终得分
+function calculateFinalScores() {
+    Object.keys(groupsData).forEach(groupName => {
+        const group = groupsData[groupName];
+        const scores = group.scores;
+        
+        if (scores.length === 0) {
+            group.finalScore = 0;
+            return;
+        }
+        
+        if (currentScoringMethod === "method1") {
+            if (scores.length <= 2) {
+                const sum = scores.reduce((total, score) => total + score.total, 0);
+                group.finalScore = sum / scores.length;
+                return;
+            }
+            
+            const sortedScores = [...scores].sort((a, b) => a.total - b.total);
+            const filteredScores = sortedScores.slice(1, sortedScores.length - 1);
+            const sum = filteredScores.reduce((total, score) => total + score.total, 0);
+            group.finalScore = sum / filteredScores.length;
+        } else if (currentScoringMethod === "method2") {
+            const sum = scores.reduce((total, score) => total + score.total, 0);
+            group.finalScore = sum / scores.length;
+        }
+    });
+}
+
+// 更新所有结果
+function updateAllResults() {
+    // 计算统计数据
+    let totalRatings = 0;
+    let totalScoreSum = 0;
+    let completedGroups = 0;
+    let highestScore = 0;
+    
+    Object.keys(groupsData).forEach(groupName => {
+        const group = groupsData[groupName];
+        totalRatings += group.scores.length;
+        totalScoreSum += group.finalScore;
+        
+        if (group.scores.length > 0) {
+            completedGroups++;
+        }
+        
+        if (group.finalScore > highestScore) {
+            highestScore = group.finalScore;
+        }
+    });
+    
+    const avgTotalScore = Object.keys(groupsData).length > 0 
+        ? (totalScoreSum / Object.keys(groupsData).length).toFixed(1) 
+        : "0.0";
+    
+    // 更新首页统计数据
+    document.getElementById('adminTotalRatings').textContent = totalRatings;
+    document.getElementById('adminAvgScore').textContent = avgTotalScore;
+    document.getElementById('adminCompleted').textContent = `${completedGroups}/${groupNames.length}`;
+    
+    // 更新结果页面统计数据
+    document.getElementById('resultsTotalRatings').textContent = totalRatings;
+    document.getElementById('resultsAvgScore').textContent = avgTotalScore;
+    document.getElementById('resultsCompleted').textContent = `${completedGroups}/${groupNames.length}`;
+    document.getElementById('resultsHighest').textContent = highestScore.toFixed(1);
+    
+    // 更新当前统计方案显示
+    const scoringMethodDisplay = document.getElementById('currentScoringMethodDisplay');
+    if (scoringMethodDisplay) {
+        if (currentScoringMethod === 'method1') {
+            scoringMethodDisplay.textContent = '方案1 - 去极值平均法';
+        } else {
+            scoringMethodDisplay.textContent = '方案2 - 简单平均法';
+        }
+    }
+    
+    // 更新排名显示
+    updateRankingResults();
+    
+    // 更新手机端进度
+    updateGroupSelection();
+}
+
+// 更新排名显示
+function updateRankingResults() {
+    const rankingResults = document.getElementById('rankingResults');
+    if (!rankingResults) return;
+    
+    const sortedGroups = Object.keys(groupsData).sort((a, b) => 
+        groupsData[b].finalScore - groupsData[a].finalScore
+    );
+    
+    if (sortedGroups.some(groupName => groupsData[groupName].scores.length > 0)) {
+        let html = '';
+        sortedGroups.forEach((groupName, index) => {
+            const group = groupsData[groupName];
+            
+            html += `
+            <div class="mobile-content" style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                    <div>
+                        <div style="font-weight: 600; color: #2c3e50;">${groupName}</div>
+                        <div style="color: #7f8c8d; font-size: 0.9rem;">评分次数: ${group.scores.length}次</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #3498db;">${group.finalScore.toFixed(1)}</div>
+                        <div style="color: #7f8c8d; font-size: 0.8rem;">第${index + 1}名</div>
+                    </div>
+                </div>
+            </div>
+            `;
+        });
+        rankingResults.innerHTML = html;
+    } else {
+        rankingResults.innerHTML = '<p style="text-align: center; padding: 40px; color: #7f8c8d;">暂无评分数据，请等待评委提交评分...</p>';
+    }
+}
+
+// 同步数据
+async function syncData() {
+    showMessage('📊 正在同步数据...', 'info');
+    await loadData();
+    updateAllResults();
+    updateGroupSelection();
+    updateReRatingRequestsList();
+    setTimeout(() => {
+        showMessage('✅ 数据同步完成！');
+    }, 1000);
+}
+
+// 导出为Excel（包含详细评分和最终结果）
+function exportToExcel() {
+    try {
+        // 创建工作簿
+        const wb = XLSX.utils.book_new();
+        
+        // 1. 创建详细评分工作表
+        const ratingData = [];
+        
+        // 添加详细评分表头
+        ratingData.push([
+            '评委ID', '组别', '评分时间', '评分方案', '总分'
+        ]);
+        
+        // 添加详细评分数据
+        Object.keys(groupsData).forEach(groupName => {
+            const group = groupsData[groupName];
+            group.scores.forEach(score => {
+                const scheme = ratingSchemes[score.schemeId] || { name: '未知方案' };
+                ratingData.push([
+                    score.userId,
+                    groupName,
+                    new Date(score.timestamp).toLocaleString(),
+                    scheme.name,
+                    score.total
+                ]);
+            });
+        });
+        
+        const wsDetails = XLSX.utils.aoa_to_sheet(ratingData);
+        XLSX.utils.book_append_sheet(wb, wsDetails, '详细评分记录');
+        
+        // 2. 创建最终结果汇总工作表
+        const summaryData = [
+            ['组别', '评分次数', '最终得分', '排名', '评委评分详情']
+        ];
+        
+        Object.keys(groupsData)
+            .sort((a, b) => groupsData[b].finalScore - groupsData[a].finalScore)
+            .forEach((groupName, index) => {
+                const group = groupsData[groupName];
+                let scoreDetails = '';
+                
+                // 生成评分详情（评委ID: 分数）
+                group.scores.forEach((score, idx) => {
+                    scoreDetails += `评委${idx + 1}(${score.userId.substring(0, 8)}): ${score.total}分`;
+                    if (idx < group.scores.length - 1) scoreDetails += ', ';
+                });
+                
+                summaryData.push([
+                    groupName,
+                    group.scores.length,
+                    group.finalScore.toFixed(1),
+                    index + 1,
+                    scoreDetails
+                ]);
+            });
+        
+        const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+        XLSX.utils.book_append_sheet(wb, wsSummary, '最终结果汇总');
+        
+        // 3. 创建评委统计工作表
+        const judgeStats = [['评委ID', '评分次数', '平均分数', '评分组别']];
+        
+        // 统计每个评委的数据
+        const judgeData = {};
+        Object.keys(groupsData).forEach(groupName => {
+            groupsData[groupName].scores.forEach(score => {
+                if (!judgeData[score.userId]) {
+                    judgeData[score.userId] = {
+                        count: 0,
+                        totalScore: 0,
+                        groups: new Set()
+                    };
+                }
+                judgeData[score.userId].count++;
+                judgeData[score.userId].totalScore += score.total;
+                judgeData[score.userId].groups.add(groupName);
+            });
+        });
+        
+        Object.keys(judgeData).forEach(judgeId => {
+            const data = judgeData[judgeId];
+            judgeStats.push([
+                judgeId,
+                data.count,
+                (data.totalScore / data.count).toFixed(1),
+                Array.from(data.groups).join(', ')
+            ]);
+        });
+        
+        const wsJudges = XLSX.utils.aoa_to_sheet(judgeStats);
+        XLSX.utils.book_append_sheet(wb, wsJudges, '评委统计');
+        
+        // 生成Excel文件并下载
+        const fileName = `评分系统完整数据_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+        
+        showMessage('✅ Excel文件导出成功！包含详细评分和最终结果');
+    } catch (error) {
+        console.error('导出Excel失败:', error);
+        showMessage('⚠️ Excel文件导出失败，请重试', 'warning');
+    }
+}
+
+// 导出为Word（包含详细评分和最终结果）
+function exportToWord() {
+    try {
+        let content = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' 
+              xmlns:w='urn:schemas-microsoft-com:office:word' 
+              xmlns='http://www.w3.org/TR/REC-html40'>
+        <head>
+            <meta charset="utf-8">
+            <title>评分系统完整报告</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+                h1 { color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+                h2 { color: #3498db; border-left: 4px solid #3498db; padding-left: 10px; }
+                table { width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #ddd; }
+                th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+                th { background-color: #f8f9fa; font-weight: bold; }
+                .judge-score { background-color: #f0f8f0; padding: 8px; margin: 5px 0; border-radius: 3px; }
+            </style>
+        </head>
+        <body>
+            <h1>洗护/护肤组比赛评分系统完整报告</h1>
+            <p><strong>导出时间：</strong>${new Date().toLocaleString()}</p>
+            
+            <h2>📊 最终结果汇总</h2>
+            <table>
+                <tr>
+                    <th>排名</th>
+                    <th>组别</th>
+                    <th>最终得分</th>
+                    <th>评分次数</th>
+                    <th>评委评分详情</th>
+                </tr>
+        `;
+        
+        // 添加最终结果
+        Object.keys(groupsData)
+            .sort((a, b) => groupsData[b].finalScore - groupsData[a].finalScore)
+            .forEach((groupName, index) => {
+                const group = groupsData[groupName];
+                let judgeDetails = '';
+                
+                group.scores.forEach((score, idx) => {
+                    judgeDetails += `<div class="judge-score">评委${idx + 1} (${score.userId.substring(0, 8)}): ${score.total}分</div>`;
+                });
+                
+                content += `
+                <tr>
+                    <td>第${index + 1}名</td>
+                    <td>${groupName}</td>
+                    <td><strong>${group.finalScore.toFixed(1)}</strong></td>
+                    <td>${group.scores.length}次</td>
+                    <td>${judgeDetails}</td>
+                </tr>
+                `;
+            });
+        
+        content += `
+            </table>
+            
+            <h2>📝 详细评分记录</h2>
+            <table>
+                <tr>
+                    <th>评委ID</th>
+                    <th>组别</th>
+                    <th>评分时间</th>
+                    <th>评分方案</th>
+                    <th>总分</th>
+                </tr>
+        `;
+        
+        // 添加详细评分数据
+        Object.keys(groupsData).forEach(groupName => {
+            const group = groupsData[groupName];
+            group.scores.forEach(score => {
+                const scheme = ratingSchemes[score.schemeId] || { name: '未知方案' };
+                content += `
+                <tr>
+                    <td>${score.userId}</td>
+                    <td>${groupName}</td>
+                    <td>${new Date(score.timestamp).toLocaleString()}</td>
+                    <td>${scheme.name}</td>
+                    <td>${score.total}</td>
+                </tr>
+                `;
+            });
+        });
+        
+        content += `
+            </table>
+            
+            <h2>👥 评委统计</h2>
+            <table>
+                <tr>
+                    <th>评委ID</th>
+                    <th>评分次数</th>
+                    <th>平均分数</th>
+                    <th>评分组别</th>
+                </tr>
+        `;
+        
+        // 统计评委数据
+        const judgeData = {};
+        Object.keys(groupsData).forEach(groupName => {
+            groupsData[groupName].scores.forEach(score => {
+                if (!judgeData[score.userId]) {
+                    judgeData[score.userId] = {
+                        count: 0,
+                        totalScore: 0,
+                        groups: new Set()
+                    };
+                }
+                judgeData[score.userId].count++;
+                judgeData[score.userId].totalScore += score.total;
+                judgeData[score.userId].groups.add(groupName);
+            });
+        });
+        
+        Object.keys(judgeData).forEach(judgeId => {
+            const data = judgeData[judgeId];
+            content += `
+                <tr>
+                    <td>${judgeId}</td>
+                    <td>${data.count}</td>
+                    <td>${(data.totalScore / data.count).toFixed(1)}</td>
+                    <td>${Array.from(data.groups).join(', ')}</td>
+                </tr>
+            `;
+        });
+        
+        content += `
+            </table>
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666;">
+                <p>报告生成时间: ${new Date().toLocaleString()}</p>
+                <p>评分系统 v1.0 - 洗护/护肤组比赛</p>
+            </div>
+        </body>
+        </html>
+        `;
+        
+        // 创建Blob并下载
+        const blob = new Blob([content], {type: 'application/msword'});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `评分系统完整报告_${new Date().toLocaleDateString().replace(/\//g, '-')}.doc`;
+        link.click();
+        
+        showMessage('✅ Word文件导出成功！包含详细评分和最终结果');
+    } catch (error) {
+        console.error('导出Word失败:', error);
+        showMessage('⚠️ Word文件导出失败，请重试', 'warning');
+    }
+}
+
+// 导出为JSON
+function exportToJSON() {
+    const exportData = {
+        exportTime: new Date().toLocaleString(),
+        groupsData: groupsData,
+        ratingSchemes: ratingSchemes,
+        currentSchemeId: currentSchemeId,
+        summary: getExportSummary()
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `评分系统完整数据_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`;
+    link.click();
+    showMessage('✅ JSON文件导出成功！包含完整评分数据');
+}
+
+// 获取导出摘要信息
+function getExportSummary() {
+    const summary = {
+        totalRatings: 0,
+        totalGroups: Object.keys(groupsData).length,
+        ratedGroups: 0,
+        totalJudges: new Set(),
+        ranking: []
+    };
+    
+    Object.keys(groupsData).forEach(groupName => {
+        const group = groupsData[groupName];
+        summary.totalRatings += group.scores.length;
+        
+        if (group.scores.length > 0) {
+            summary.ratedGroups++;
+        }
+        
+        group.scores.forEach(score => {
+            summary.totalJudges.add(score.userId);
+        });
+        
+        summary.ranking.push({
+            group: groupName,
+            finalScore: group.finalScore,
+            ratingCount: group.scores.length,
+            judges: group.scores.map(score => score.userId)
+        });
+    });
+    
+    summary.ranking.sort((a, b) => b.finalScore - a.finalScore);
+    summary.totalJudges = summary.totalJudges.size;
+    
+    return summary;
+}
+
+// 保存数据到 JSONBin.io
+        async function saveData() {
+            const dataToSave = {
+                groupsData,
+                ratingSchemes,
+                currentSchemeId,
+                currentScoringMethod,
+                groupNames,
+                reRatingRequests,
+                ratingHistory,
+                lastUpdate: new Date().getTime()
+            };
+            
+            try {
+                const response = await axios.put(JSONBIN_API_URL, dataToSave, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_API_KEY
+                    }
+                });
+                console.log('数据保存到 JSONBin.io 成功');
+                
+                // 同时保存到 localStorage 作为备份
+                localStorage.setItem('ratingSystemData', JSON.stringify(dataToSave));
+            } catch (e) {
+                console.error('保存到 JSONBin.io 失败:', e);
+                // 如果云端保存失败，保存到本地
+                localStorage.setItem('ratingSystemData', JSON.stringify(dataToSave));
+                showMessage('⚠️ 云端保存失败，已保存到本地', 'warning');
+            }
+        }
+        
+        // 从 JSONBin.io 加载数据
+        async function loadData() {
+            let loadedData = null;
+            
+            try {
+                const response = await axios.get(JSONBIN_API_URL, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_API_KEY
+                    }
+                });
+                loadedData = response.data.record;
+                console.log('从 JSONBin.io 加载数据成功');
+            } catch (e) {
+                console.error('从 JSONBin.io 加载数据失败:', e);
+                // 如果云端加载失败，尝试从本地加载
+                try {
+                    const savedData = localStorage.getItem('ratingSystemData');
+                    if (savedData) {
+                        loadedData = JSON.parse(savedData);
+                        console.log('从 localStorage 加载数据成功');
+                    }
+                } catch (localError) {
+                    console.error('从 localStorage 加载数据失败:', localError);
+                }
+            }
+            
+            if (loadedData) {
+                groupsData = loadedData.groupsData || {};
+                ratingSchemes = loadedData.ratingSchemes || ratingSchemes;
+                currentSchemeId = loadedData.currentSchemeId || currentSchemeId;
+                currentScoringMethod = loadedData.currentScoringMethod || currentScoringMethod;
+                
+                // 加载组名
+                if (loadedData.groupNames && Array.isArray(loadedData.groupNames)) {
+                    groupNames = loadedData.groupNames;
+                }
+                
+                // 加载重评请求
+                if (loadedData.reRatingRequests && Array.isArray(loadedData.reRatingRequests)) {
+                    reRatingRequests = loadedData.reRatingRequests;
+                }
+                
+                // 加载评分历史
+                if (loadedData.ratingHistory && Array.isArray(loadedData.ratingHistory)) {
+                    ratingHistory = loadedData.ratingHistory;
+                }
+                
+                // 初始化组数据
+                initializeGroupsData();
+                
+                // 确保每个方案都有schemeLink
+                Object.keys(ratingSchemes).forEach(schemeId => {
+                    if (!ratingSchemes[schemeId].schemeLink) {
+                        ratingSchemes[schemeId].schemeLink = generateSchemeLink(schemeId);
+                    }
+                });
+            }
+        }
+
+// 生成用户ID - 为每个设备生成独立ID
+function generateUserId() {
+    let userId = localStorage.getItem('ratingUserId');
+    if (!userId) {
+        userId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        localStorage.setItem('ratingUserId', userId);
+    }
+    return userId;
+}
+
+// 获取当前用户ID
+function getCurrentUserId() {
+    return generateUserId();
+}
+
+// 检查当前用户是否已评分某个组
+function hasUserRated(groupName) {
+    const userId = getCurrentUserId();
+    const group = groupsData[groupName];
+    if (!group || !group.scores) return false;
+    
+    return group.scores.some(score => score.userId === userId);
+}
+
+// 获取当前用户的评分
+function getUserRating(groupName) {
+    const userId = getCurrentUserId();
+    const group = groupsData[groupName];
+    if (!group || !group.scores) return null;
+    
+    return group.scores.find(score => score.userId === userId);
+}
+
+// 显示消息
+function showMessage(text, type = 'success') {
+    const message = document.getElementById(type === 'info' ? 'infoMessage' : type === 'warning' ? 'warningMessage' : 'successMessage');
+    message.textContent = text;
+    message.style.display = 'block';
+    
+    setTimeout(() => {
+        message.style.display = 'none';
+    }, 3000);
+}
+
+// 检查URL hash
+function checkHash() {
+    const hash = window.location.hash.replace('#', '');
+    if (hash.includes('mobile')) {
+        showMobilePage('group');
+    } else {
+        showAdminPage('home');
+    }
+}
+
+// 重置所有数据
+async function resetAllData() {
+    if (confirm('⚠️ 确定要重置所有评分数据吗？此操作将清除所有评分记录！')) {
+        // 保留组名，只重置评分数据
+        groupNames.forEach(groupName => {
+            groupsData[groupName] = { scores: [], finalScore: 0 };
+        });
+        
+        await saveData();
+        updateAllResults();
+        updateGroupSelection();
+        showMessage('✅ 所有数据已重置！');
+    }
+}
+
+// 初始化
+window.addEventListener('DOMContentLoaded', init);
+window.addEventListener('hashchange', function() {
+    detectVersion();
+    checkHash();
+});
+
+console.log('评分系统代码加载完成');
+</script>
+</body>
+</html>
