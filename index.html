@@ -556,9 +556,17 @@
                 <div class="mobile-content">
                     <h3 style="text-align: center;">🔄 我的重评请求</h3>
                     <div id="myReRatingRequests"></div>
-                    <button class="submit-btn" onclick="refreshMobileData()" style="background: #95a5a6; margin-top: 15px; font-size: 1rem; padding: 15px;">
-                        🔄 刷新数据
-                    </button>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="submit-btn" onclick="refreshMobileData()" style="flex: 1; background: #95a5a6; font-size: 1rem; padding: 15px;">
+                            🔄 刷新数据
+                        </button>
+                        <button class="submit-btn" onclick="forceRefresh()" style="flex: 1; background: #e74c3c; font-size: 1rem; padding: 15px;">
+                            🔄 强制刷新
+                        </button>
+                    </div>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 10px; margin-top: 15px; font-size: 0.85rem; color: #856404;">
+                        <strong>💡 提示：</strong>如果微信提示"被限制"，请点击"强制刷新"按钮
+                    </div>
                 </div>
             </div>
             
@@ -606,6 +614,15 @@
         // 初始化
         async function init() {
             console.log('系统初始化...');
+            
+            // 清除可能的缓存
+            try {
+                localStorage.removeItem('ratingSystemData');
+                console.log('已清除本地缓存');
+            } catch (e) {
+                console.error('清除缓存失败:', e);
+            }
+            
             initializeGroupsData();
             initializeDefaultScheme();
             detectVersion();
@@ -853,6 +870,24 @@
         // 检测当前版本
         function detectVersion() {
             const hash = window.location.hash.replace('#', '');
+            
+            // 检查本地缓存的版本，如果版本不匹配，强制刷新
+            try {
+                const cachedData = localStorage.getItem('ratingSystemData');
+                if (cachedData) {
+                    const parsed = JSON.parse(cachedData);
+                    if (parsed.appVersion !== '1.0') {
+                        console.log('检测到旧版本缓存，清除缓存并刷新');
+                        localStorage.removeItem('ratingSystemData');
+                        // 强制刷新页面
+                        window.location.reload();
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error('检查缓存版本失败:', e);
+            }
+            
             if (hash.includes('mobile')) {
                 currentVersion = 'mobile';
                 document.getElementById('adminPage').style.display = 'none';
@@ -2364,11 +2399,36 @@ async function requestReRating(groupName) {
                 updateGroupSelection();
                 updateMyReRatingRequests();
                 
+                console.log('数据刷新成功，当前方案:', currentSchemeId);
                 showMessage('✅ 数据刷新成功！');
             } catch (error) {
                 console.error('刷新数据失败:', error);
                 showMessage('⚠️ 数据刷新失败，请检查网络连接', 'warning');
             }
+        }
+        
+        // 强制刷新（清除所有缓存）
+        async function forceRefresh() {
+            console.log('执行强制刷新...');
+            
+            // 清除所有本地缓存
+            try {
+                localStorage.clear();
+                console.log('已清除所有localStorage缓存');
+            } catch (e) {
+                console.error('清除缓存失败:', e);
+            }
+            
+            // 清除sessionStorage
+            try {
+                sessionStorage.clear();
+                console.log('已清除sessionStorage');
+            } catch (e) {
+                console.error('清除sessionStorage失败:', e);
+            }
+            
+            // 重新加载页面
+            window.location.reload();
         }
         
         // 提交评分
