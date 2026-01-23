@@ -595,6 +595,8 @@
         let reRatingRequests = [];
         let ratingHistory = [];
         let autoSyncInterval = null;
+        let appVersion = '1.0'; // 应用版本号，用于版本控制
+        let lastSaveTime = 0; // 上次保存时间
         
         // JSONBin.io 配置
         const JSONBIN_API_KEY = '$2a$10$c2NEBUyWOI3Yqv3mlGn8zeY7ysKbSPQdFv9Oyli9LN5J8LN1wkvSK'; // 请替换为你的 API Key
@@ -856,21 +858,25 @@
                 document.getElementById('adminPage').style.display = 'none';
                 document.getElementById('mobilePage').style.display = 'block';
                 
-                // 检查是否有指定的方案
-                const schemeMatch = hash.match(/scheme=(\w+)/);
-                if (schemeMatch && ratingSchemes[schemeMatch[1]]) {
-                    currentSchemeId = schemeMatch[1];
-                }
-                
-                // 检查是否有指定的统计方案
-                const scoringMatch = hash.match(/scoring=(\w+)/);
-                if (scoringMatch && (scoringMatch[1] === 'method1' || scoringMatch[1] === 'method2')) {
-                    currentScoringMethod = scoringMatch[1];
-                }
+                // 评委端：使用固定的scheme1，不检测URL参数
+                console.log('评委端打开，使用固定方案 scheme1');
             } else {
                 currentVersion = 'admin';
                 document.getElementById('adminPage').style.display = 'block';
                 document.getElementById('mobilePage').style.display = 'none';
+                
+                // 管理端：检测URL中的scheme和scoring参数
+                const schemeMatch = hash.match(/scheme=(\w+)/);
+                if (schemeMatch && ratingSchemes[schemeMatch[1]]) {
+                    currentSchemeId = schemeMatch[1];
+                    console.log('管理端切换到方案:', currentSchemeId);
+                }
+                
+                const scoringMatch = hash.match(/scoring=(\w+)/);
+                if (scoringMatch && (scoringMatch[1] === 'method1' || scoringMatch[1] === 'method2')) {
+                    currentScoringMethod = scoringMatch[1];
+                    console.log('管理端切换到统计方法:', currentScoringMethod);
+                }
             }
         }
         
@@ -1188,7 +1194,7 @@
         // 新建方案
         function showSchemeEditorNew() {
             currentEditingScheme = {
-                id: 'scheme_' + Date.now(),
+                id: 'scheme_new_' + Date.now(),
                 name: '新评分方案',
                 description: '',
                 dimensions: [
@@ -2029,8 +2035,9 @@ async function saveScheme() {
         
         // 复制评分版链接
         function copyRatingLink() {
+            // 评委链接固定为#mobile，不包含scheme参数
             const link = window.location.href.split('#')[0] + '#mobile';
-            copyToClipboard(link, '✅ 评分版链接已复制！请分享给评委。');
+            copyToClipboard(link, '✅ 评委链接已复制！请分享给评委。此链接固定不变，微信不会提示"被限制"。');
         }
         
         // 复制到剪贴板
@@ -2954,7 +2961,8 @@ function getExportSummary() {
                 groupNames,
                 reRatingRequests,
                 ratingHistory,
-                lastUpdate: new Date().getTime()
+                appVersion: '1.0',
+                lastSaveTime: new Date().getTime()
             };
             
             // 先保存到 localStorage 作为备份
@@ -2973,7 +2981,11 @@ function getExportSummary() {
                         timeout: 10000 // 10秒超时
                     });
                     
-                    console.log('数据保存到 JSONBin.io 成功');
+                    console.log('数据保存到 JSONBin.io 成功，版本:', appVersion);
+                    
+                    // 更新本地保存时间
+                    lastSaveTime = new Date().getTime();
+                    
                     return true;
                 } catch (e) {
                     console.error('保存到 JSONBin.io 失败 (尝试 ' + (retryCount + 1) + '/' + maxRetries + '):', e);
