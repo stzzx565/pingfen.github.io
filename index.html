@@ -615,13 +615,8 @@
         async function init() {
             console.log('系统初始化...');
             
-            // 清除可能的缓存
-            try {
-                localStorage.removeItem('ratingSystemData');
-                console.log('已清除本地缓存');
-            } catch (e) {
-                console.error('清除缓存失败:', e);
-            }
+            // 不要清除localStorage，保留评委端的数据
+            // 只在版本不匹配时才清除
             
             initializeGroupsData();
             initializeDefaultScheme();
@@ -656,22 +651,26 @@
                 clearInterval(autoSyncInterval);
             }
             
-            // 每30秒自动同步一次数据
-            autoSyncInterval = setInterval(async () => {
-                console.log('自动同步数据...');
-                await loadData();
+            // 只在管理端启动自动同步，评委端不启动
+            // 因为评委端需要保留本地的新数据，自动同步会覆盖
+            if (currentVersion === 'admin') {
+                // 每30秒自动同步一次数据
+                autoSyncInterval = setInterval(async () => {
+                    console.log('自动同步数据...');
+                    await loadData();
+                    
+                    if (currentVersion === 'admin') {
+                        // 管理端：更新所有界面
+                        updateReRatingRequestsList();
+                        updateAllResults();
+                        updateGroupSelection();
+                    }
+                }, 30000); // 30秒
                 
-                if (currentVersion === 'admin') {
-                    // 管理端：更新所有界面
-                    updateReRatingRequestsList();
-                    updateAllResults();
-                    updateGroupSelection();
-                } else {
-                    // 评委端：只更新重评请求和组选择状态，不覆盖本地数据
-                    updateMyReRatingRequests();
-                    updateGroupSelection();
-                }
-            }, 30000); // 30秒
+                console.log('自动同步已启动（管理端）');
+            } else {
+                console.log('评委端不启动自动同步，避免覆盖本地数据');
+            }
         }
         
         // 停止自动同步
@@ -2501,7 +2500,7 @@ async function requestReRating(groupName) {
                 submitBtn.textContent = '📤 提交评分';
                 
                 // 立即保存到本地（防止刷新丢失）
-                localStorage.setItem('ratingSystemData', JSON.stringify({
+                const dataToSave = {
                     groupsData,
                     ratingSchemes,
                     currentSchemeId,
@@ -2509,8 +2508,12 @@ async function requestReRating(groupName) {
                     groupNames,
                     reRatingRequests,
                     ratingHistory,
-                    lastUpdate: new Date().getTime()
-                }));
+                    appVersion: '1.0',
+                    lastSaveTime: new Date().getTime()
+                };
+                
+                localStorage.setItem('ratingSystemData', JSON.stringify(dataToSave));
+                console.log('评委端提交后立即保存到本地');
                 
                 // 返回选择页面并更新状态
                 showMobilePage('group');
@@ -3028,6 +3031,7 @@ function getExportSummary() {
             // 先保存到 localStorage 作为备份
             localStorage.setItem('ratingSystemData', JSON.stringify(dataToSave));
             
+            // 评委端和管理端都保存到云端
             let retryCount = 0;
             const maxRetries = 3;
             
@@ -3078,42 +3082,70 @@ function getExportSummary() {
                 console.error('从 localStorage 加载数据失败:', localError);
             }
             
-            // 强制从云端加载最新数据（微信端需要）
-            try {
-                const response = await axios.get(JSONBIN_API_URL, {
-                    headers: {
-                        'X-Master-Key': JSONBIN_API_KEY
-                    },
-                    timeout: 10000 // 10秒超时
-                });
+            // 评委端：从云端加载最新数据
+            // 但只显示自己的评分（通过hasUserRated()函数过滤）
+            if (currentVersion === 'mobile') {
+                console.log('评委端：从云端加载最新数据');
                 
-                const cloudData = response.data.record;
-                
-                // 云端数据优先：如果云端有数据，直接使用云端数据
-                if (cloudData && cloudData.lastUpdate) {
-                    // 检查是否是微信端（通过URL参数判断）
-                    const isWeChat = navigator.userAgent.toLowerCase().includes('micromessenger');
+                // 从云端加载最新数据
+                try {
+                    const response = await axios.get(JSONBIN_API_URL, {
+                        headers: {
+                            'X-Master-Key': JSONBIN_API_KEY
+                        },
+                        timeout: 10000 // 10秒超时
+                    });
                     
-                    if (isWeChat || !loadedData || cloudData.lastUpdate > (loadedData.lastUpdate || 0)) {
-                        // 微信端或云端数据更新，直接使用云端数据
+                    const cloudData = response.data.record;
+                    
+                    // 使用云端数据
+                    if (cloudData && cloudData.lastUpdate) {
                         loadedData = cloudData;
-                        cloudSuccess = true;
-                        console.log('使用云端数据，时间戳:', cloudData.lastUpdate);
+                        console.log('评委端从云端加载最新数据，时间戳:', cloudData.lastUpdate);
                         
-                        // 清除本地缓存，强制使用云端数据
+                        // 保存到本地
                         localStorage.setItem('ratingSystemData', JSON.stringify(cloudData));
-                    } else {
-                        console.log('本地数据比云端新，使用本地数据，时间戳:', loadedData.lastUpdate);
+                    }
+                } catch (e) {
+                    console.error('评委端从云端加载数据失败:', e);
+                    if (!loadedData) {
+                        showMessage('⚠️ 云端和本地都无法加载数据', 'warning');
                     }
                 }
-            } catch (e) {
-                console.error('从 JSONBin.io 加载数据失败:', e);
-                if (!loadedData) {
-                    showMessage('⚠️ 云端和本地都无法加载数据', 'warning');
+                
+                if (loadedData) {
+                    // 应用云端数据
+                    groupsData = loadedData.groupsData || {};
+                    ratingSchemes = loadedData.ratingSchemes || ratingSchemes;
+                    currentSchemeId = loadedData.currentSchemeId || currentSchemeId;
+                    currentScoringMethod = loadedData.currentScoringMethod || currentScoringMethod;
+                    
+                    if (loadedData.groupNames && Array.isArray(loadedData.groupNames)) {
+                        groupNames = loadedData.groupNames;
+                    }
+                    
+                    if (loadedData.reRatingRequests && Array.isArray(loadedData.reRatingRequests)) {
+                        reRatingRequests = loadedData.reRatingRequests;
+                    }
+                    
+                    if (loadedData.ratingHistory && Array.isArray(loadedData.ratingHistory)) {
+                        ratingHistory = loadedData.ratingHistory;
+                    }
+                    
+                    initializeGroupsData();
+                    
+                    Object.keys(ratingSchemes).forEach(schemeId => {
+                        if (!ratingSchemes[schemeId].schemeLink) {
+                            ratingSchemes[schemeId].schemeLink = generateSchemeLink(schemeId);
+                        }
+                    });
+                    
+                    console.log('✅ 评委端数据加载成功（云端数据）');
                 }
+                return;
             }
             
-            // 如果有加载的数据，应用它
+            // 管理端：从云端加载最新数据
             if (loadedData) {
                 groupsData = loadedData.groupsData || {};
                 ratingSchemes = loadedData.ratingSchemes || ratingSchemes;
